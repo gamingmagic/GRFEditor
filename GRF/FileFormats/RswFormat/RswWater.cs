@@ -6,7 +6,7 @@ namespace GRF.FileFormats.RswFormat {
 	/// <summary>
 	/// The RSW water information.
 	/// </summary>
-	public class RswWater {
+	public class RswWater : IWriteableObject {
 		/// <summary>
 		/// Initializes a new instance of the <see cref="RswWater" /> class.
 		/// </summary>
@@ -92,23 +92,13 @@ namespace GRF.FileFormats.RswFormat {
 		/// Writes the specified object to the stream.
 		/// </summary>
 		/// <param name="writer">The writer.</param>
-		/// <param name="header">The RSW header.</param>
-		public void Write(BinaryWriter writer, RswHeader header) {
-			if (header.Version >= 2.6)
-				return;
-
-			if (header.Version >= 1.3)
-				writer.Write(Level);
-
-			if (header.Version >= 1.8) {
-				writer.Write(Type);
-				writer.Write(WaveHeight);
-				writer.Write(WaveSpeed);
-				writer.Write(WavePitch);
-			}
-
-			if (header.Version >= 1.9)
-				writer.Write(TextureCycling);
+		public void Write(BinaryWriter writer) {
+			writer.Write(Level);
+			writer.Write(Type);
+			writer.Write(WaveHeight);
+			writer.Write(WaveSpeed);
+			writer.Write(WavePitch);
+			writer.Write(TextureCycling);
 		}
 
 		#endregion

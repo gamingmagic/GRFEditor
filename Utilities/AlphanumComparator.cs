@@ -27,10 +27,8 @@ namespace Utilities {
 				return 0;
 			}
 
-			int thisMarker = 0;
-			int thatMarker = 0;
-			Int64 thisNumericChunk = 0;
-			Int64 thatNumericChunk = 0;
+			int thisMarker = 0, thisNumericChunk = 0;
+			int thatMarker = 0, thatNumericChunk = 0;
 
 			while ((thisMarker < s1.Length) || (thatMarker < s2.Length)) {
 				if (thisMarker >= s1.Length) {
@@ -66,20 +64,15 @@ namespace Utilities {
 				int result = 0;
 				// If both chunks contain numeric characters, sort them numerically
 				if (char.IsDigit(thisChunk[0]) && char.IsDigit(thatChunk[0])) {
-					try {
-						thisNumericChunk = Convert.ToInt64(thisChunk.ToString());
-						thatNumericChunk = Convert.ToInt64(thatChunk.ToString());
+					thisNumericChunk = Convert.ToInt32(thisChunk.ToString());
+					thatNumericChunk = Convert.ToInt32(thatChunk.ToString());
 
-						if (thisNumericChunk < thatNumericChunk) {
-							result = -1;
-						}
-
-						if (thisNumericChunk > thatNumericChunk) {
-							result = 1;
-						}
+					if (thisNumericChunk < thatNumericChunk) {
+						result = -1;
 					}
-					catch {
-						result = String.CompareOrdinal(thisChunk.ToString(), thatChunk.ToString());
+
+					if (thisNumericChunk > thatNumericChunk) {
+						result = 1;
 					}
 				}
 				else {

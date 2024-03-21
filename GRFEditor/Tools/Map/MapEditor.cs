@@ -88,16 +88,14 @@ namespace GRFEditor.Tools.Map {
 		private void _generate(string mapName, byte[] gatData, byte[] rswData, byte[] gndData, FileStream writer, object oLock, List<FileEntry> entries) {
 			float waterLevel = Rsw.WaterLevel(rswData);
 
-			RswHeader rswHeader = new RswHeader(new ByteReader(rswData));
-
 			//CLHelper.CResume(-5);
-			Gat gat = _configGatFile(gatData, rswHeader, waterLevel);
+			Gat gat = _configGatFile(gatData, waterLevel);
 			//CLHelper.CStop(-5);
 			//CLHelper.CResume(-6);
 			Gnd gnd = _configGndFile(gndData, gat);
 			//CLHelper.CStop(-6);
 			//CLHelper.CResume(-7);
-			Rsw rsw = _configRswFile(rswData, mapName, gnd);
+			Rsw rsw = _configRswFile(rswData, mapName, gat, gnd);
 			//CLHelper.CStop(-7);
 
 			gat.LoadedPath = "data\\" + mapName + ".gat";
@@ -137,11 +135,6 @@ namespace GRFEditor.Tools.Map {
 			//CLHelper.CResume(-20);
 			Gnd gnd = new Gnd(gndData);
 			//CLHelper.CStop(-20);
-
-			if (gnd.Header.Version >= 1.7) {
-				// Doesn't like new maps very much
-				gnd.Header.SetVersion(1, 7);
-			}
 
 			if (GrfEditorConfiguration.FlattenGround) {
 				//CLHelper.CResume(-21);
@@ -234,26 +227,9 @@ namespace GRFEditor.Tools.Map {
 							b.Append("c-2");
 						}
 						else {
-							switch(gatCell.Type) {
-								case GatType.Weird0:
-								case GatType.Weird1:
-								case GatType.Weird2:
-								case GatType.Weird3:
-								case GatType.Weird4:
-								case GatType.Weird5:
-								case GatType.Weird6:
-								case GatType.Weird7:
-								case GatType.Weird8:
-								case GatType.Weird9:
-									cellTypes[i] = (int)GatType.Walkable;
-									break;
-								default:
-									cellTypes[i] = (int)gatCell.Type;
-									break;
-							}
-
+							cellTypes[i] = (int)gatCell.Type;
 							b.Append("c");
-							b.Append(cellTypes[i]);
+							b.Append((int)gatCell.Type);
 						}
 					}
 					b.Append(".bmp");
@@ -376,7 +352,7 @@ namespace GRFEditor.Tools.Map {
 			return pixels;
 		}
 
-		private Rsw _configRswFile(byte[] rswData, string mapName, Gnd gnd) {
+		private Rsw _configRswFile(byte[] rswData, string mapName, Gat gat, Gnd gnd) {
 			Rsw rsw;
 
 			if (GrfEditorConfiguration.FlattenGround) {
@@ -405,12 +381,10 @@ namespace GRFEditor.Tools.Map {
 			return rsw;
 		}
 
-		private Gat _configGatFile(byte[] gatData, RswHeader rswHeader, float waterLevel) {
+		private Gat _configGatFile(byte[] gatData, float waterLevel) {
 			Gat gat = new Gat(gatData);
 
-			if (rswHeader.Version < 2.6) {
-				gat.IdentifyWaterCells(waterLevel);
-			}
+			gat.IdentifyWaterCells(waterLevel);
 
 			if (GrfEditorConfiguration.FlattenGround)
 				gat.SetCellsHeight(0);

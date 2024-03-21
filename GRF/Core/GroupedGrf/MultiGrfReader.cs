@@ -51,10 +51,6 @@ namespace GRF.Core.GroupedGrf {
 			Update(new List<TkPath> {new TkPath(GrfStrings.CurrentlyOpenedGrf + grf.FileName)}, grf);
 		}
 
-		public void Add(string path) {
-			_openGrfs(new List<TkPath> { new TkPath(path) }, null, false);
-		}
-
 		public void Reload() {
 			try {
 				foreach (var container in Containers.Values.Where(p => File.Exists(p.FileName))) {
@@ -98,36 +94,33 @@ namespace GRF.Core.GroupedGrf {
 			return null;
 		}
 
-		private void _openGrfs(IEnumerable<TkPath> paths, GrfHolder extraGrf, bool clear = true) {
+		private void _openGrfs(IEnumerable<TkPath> paths, GrfHolder extraGrf) {
 			try {
-				if (clear) {
-					_paths.Clear();
+				_paths.Clear();
+				var copy = new Dictionary<string, GrfHolder>(_containers);
 
-					var copy = new Dictionary<string, GrfHolder>(_containers);
-
-					foreach (var grf in copy.Values) {
-						grf.Attached["MultiGrfRreader.Delete"] = null;
-					}
-
-					_containers.Clear();
-
-					foreach (var path in paths) {
-						if (copy.ContainsKey(path.FileName)) {
-							_containers[path.FileName] = copy[path.FileName];
-							copy[path.FileName].Attached["MultiGrfRreader.Delete"] = false;
-						}
-					}
-
-					foreach (var grf in copy.Values) {
-						var value = grf.Attached["MultiGrfRreader.Delete"];
-
-						if (value != null && (bool)value == true) {
-							grf.Close();
-						}
-					}
-
-					copy.Clear();
+				foreach (var grf in copy.Values) {
+					grf.Attached["MultiGrfRreader.Delete"] = null;
 				}
+
+				_containers.Clear();
+
+				foreach (var path in paths) {
+					if (copy.ContainsKey(path.FileName)) {
+						_containers[path.FileName] = copy[path.FileName];
+						copy[path.FileName].Attached["MultiGrfRreader.Delete"] = false;
+					}
+				}
+
+				foreach (var grf in copy.Values) {
+					var value = grf.Attached["MultiGrfRreader.Delete"];
+
+					if (value != null && (bool)value == true) {
+						grf.Close();
+					}
+				}
+
+				copy.Clear();
 
 				foreach (TkPath resource in paths) {
 					if ((!String.IsNullOrEmpty(resource.FilePath)) && File.Exists(resource.FilePath)) {
@@ -260,28 +253,6 @@ namespace GRF.Core.GroupedGrf {
 					c.Commands.UndoAll();
 				}
 			});
-		}
-
-		public void Close() {
-			_paths.Clear();
-
-			var copy = new Dictionary<string, GrfHolder>(_containers);
-
-			foreach (var grf in copy.Values) {
-				grf.Attached["MultiGrfRreader.Delete"] = null;
-			}
-
-			_containers.Clear();
-
-			foreach (var grf in copy.Values) {
-				var value = grf.Attached["MultiGrfRreader.Delete"];
-
-				if (value != null && (bool)value == true) {
-					grf.Close();
-				}
-			}
-
-			copy.Clear();
 		}
 
 		public void SetData(string relativePath, byte[] data) {
