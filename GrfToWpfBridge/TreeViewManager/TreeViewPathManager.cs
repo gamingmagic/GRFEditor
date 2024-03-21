@@ -47,6 +47,7 @@ namespace GrfToWpfBridge.TreeViewManager {
 				_container = containerPath;
 			}
 
+			//string[] folders = path.RelativePath.Split('\\');
 			_tree.AddPath(path);
 		}
 
@@ -322,36 +323,6 @@ namespace GrfToWpfBridge.TreeViewManager {
 					}
 				}
 			}));
-		}
-
-		public void AddPaths(string containerPath, List<string> paths) {
-			if (_container != containerPath) {
-				ClearAll();
-				_container = containerPath;
-			}
-
-			var tkPaths = paths.Select(p => new TkPath { FilePath = containerPath, RelativePath = p.Replace("\\\\", "\\") }).ToList();
-
-			try {
-				_tree.DelayedUpdate = true;
-				string fileName = Path.GetFileName(containerPath);
-
-				foreach (var tkPath in tkPaths) {
-					string[] folders = (fileName + (String.IsNullOrEmpty(tkPath.RelativePath) ? "" : "\\" + tkPath.RelativePath)).Split('\\');
-
-					if (folders.Length == 1 && folders[0] == "")
-						return;
-
-					if (_tree.TreeNode == null)
-						_tree.TreeNode = new TreeNode(_tree, folders[0], tkPath, null);
-
-					_tree.TreeNode.AddPath(folders, tkPath, 1);
-				}
-			}
-			finally {
-				_tree.DelayedUpdate = false;
-				_tree.AddTvisToTree();
-			}
 		}
 	}
 }

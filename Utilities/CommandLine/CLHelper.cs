@@ -82,18 +82,17 @@ namespace Utilities.CommandLine {
 		}
 
 		public static string CStop() {
-			Z.Stop(_timers);
+			Z.StopWithoutDisplay(_timers);
 			return "";
 		}
 
 		public static string CStop(int opId) {
-			Z.Stop(opId);
+			Z.StopWithoutDisplay(opId);
 			return "";
 		}
 
 		public static string CReset(int opId) {
-			Z.Stop(opId);
-			Z.Delete(opId);
+			Z.StopAndRemoveWithoutDisplay(opId);
 			return "";
 		}
 
@@ -115,7 +114,7 @@ namespace Utilities.CommandLine {
 		}
 
 		public static string CResume(int opId) {
-			Z.Start(opId);
+			Z.Resume(opId);
 			return "";
 		}
 

@@ -16,7 +16,6 @@ namespace GrfToWpfBridge.TreeViewManager {
 		private readonly TkPath _path;
 		private readonly Tree _root;
 		private TreeNode _parent;
-		private bool _set = false;
 
 		public TreeNode(Tree root) {
 			_root = root;
@@ -54,14 +53,7 @@ namespace GrfToWpfBridge.TreeViewManager {
 			set { _parent = value; }
 		}
 
-		public void AddTvis() {
-			
-		}
-
 		public void Set() {
-			if (_set)
-				return;
-
 			if (_parent == null) {
 				_root.TreeView.Dispatch(delegate {
 					_setTvi();
@@ -74,8 +66,6 @@ namespace GrfToWpfBridge.TreeViewManager {
 					_parent.Tvi.Items.Add(Tvi);
 				});
 			}
-
-			_set = true;
 		}
 
 		private void _setTvi() {
@@ -195,30 +185,6 @@ namespace GrfToWpfBridge.TreeViewManager {
 
 			children.ForEach(p => p.Item1 = EncodingService.DisplayEncoding.GetString(EncodingService.GetOldDisplayEncoding().GetBytes(p.Item1)));
 			children.ForEach(p => Children[p.Item1] = p.Item2);
-		}
-
-		public void SetDelayed() {
-			if (_set)
-				return;
-
-			if (_parent == null) {
-				_setTvi();
-				_root.TreeView.Items.Add(Tvi);
-			}
-			else {
-				_setTvi();
-				_parent.Tvi.Items.Add(Tvi);
-			}
-
-			_set = true;
-		}
-
-		public void AddTvisToTree() {
-			SetDelayed();
-
-			foreach (var child in _children) {
-				child.Value.AddTvisToTree();
-			}
 		}
 	}
 }

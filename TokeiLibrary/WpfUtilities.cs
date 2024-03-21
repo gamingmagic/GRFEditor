@@ -1,17 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO.Packaging;
 using System.Linq;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Markup;
 using System.Windows.Media;
-using System.Windows.Navigation;
 using ErrorManager;
 using Utilities;
 using Utilities.Extension;
@@ -61,7 +57,7 @@ namespace TokeiLibrary {
 			if (args.NewValue is VerticalAlignment) {
 				grid.VerticalAlignment = VerticalAlignment.Top;
 
-				VerticalAlignment alignment = (VerticalAlignment)args.NewValue;
+				VerticalAlignment alignment = (VerticalAlignment) args.NewValue;
 
 				if (alignment == VerticalAlignment.Center) {
 					var res = FindDirectParentControl<FrameworkElement>(grid);
@@ -94,8 +90,8 @@ namespace TokeiLibrary {
 			FrameworkElement textBox = Keyboard.FocusedElement as FrameworkElement;
 			FrameworkElement parent = textBox;
 
-			while (parent != null && !((IInputElement)parent).Focusable) {
-				parent = (FrameworkElement)parent.Parent;
+			while (parent != null && !((IInputElement) parent).Focusable) {
+				parent = (FrameworkElement) parent.Parent;
 			}
 
 			DependencyObject scope = FocusManager.GetFocusScope(textBox);
@@ -123,7 +119,6 @@ namespace TokeiLibrary {
 
 			border.BorderBrush = LostFocusBrush;
 		}
-
 		public static void AddFocus(params FrameworkElement[] elems) {
 			foreach (FrameworkElement elem in elems) {
 				AddFocus(elem);
@@ -178,8 +173,7 @@ namespace TokeiLibrary {
 				try {
 					items.Remove(obj);
 				}
-				catch {
-				}
+				catch { }
 			}
 		}
 
@@ -215,7 +209,7 @@ namespace TokeiLibrary {
 		}
 
 		public static TItemContainer GetContainerAtPoint<TItemContainer>(this Visual control, Point p)
-			where TItemContainer : DependencyObject {
+								 where TItemContainer : DependencyObject {
 			HitTestResult result = VisualTreeHelper.HitTest(control, p);
 
 			if (result == null)
@@ -254,13 +248,13 @@ namespace TokeiLibrary {
 					// If the child's name is set for search
 					if (frameworkElement != null && frameworkElement.Name == childName) {
 						// if the child's name is of the request name
-						foundChild = (T)child;
+						foundChild = (T) child;
 						break;
 					}
 				}
 				else {
 					// child element found.
-					foundChild = (T)child;
+					foundChild = (T) child;
 					break;
 				}
 			}
@@ -288,7 +282,7 @@ namespace TokeiLibrary {
 				}
 				else {
 					// child element found.
-					foundChild = (T)child;
+					foundChild = (T) child;
 					break;
 				}
 			}
@@ -337,31 +331,25 @@ namespace TokeiLibrary {
 		public static bool IsTab(TabItem tabItem, string tab) {
 			return tabItem.Header.ToString() == tab;
 		}
-
 		public static void TextBoxError(TextBox box) {
 			box.Dispatch(p => p.Background = Error);
 		}
-
 		public static void TextBoxOk(TextBox box) {
 			box.Dispatch(p => p.Background = Ok);
 		}
-
 		public static void TextBoxProcessing(TextBox box) {
 			box.Dispatch(p => p.Background = Processing);
 		}
-
 		public static void SetGridPosition(UIElement element, int? row, int? rowSpawn, int? column, int? columnSpan) {
 			if (row != null) element.SetValue(Grid.RowProperty, row.Value);
 			if (rowSpawn != null) element.SetValue(Grid.RowSpanProperty, rowSpawn.Value);
 			if (column != null) element.SetValue(Grid.ColumnProperty, column.Value);
 			if (columnSpan != null) element.SetValue(Grid.ColumnSpanProperty, columnSpan.Value);
 		}
-
 		public static void SetGridPosition(UIElement element, int? row, int? column) {
 			if (row != null) element.SetValue(Grid.RowProperty, row.Value);
 			if (column != null) element.SetValue(Grid.ColumnProperty, column.Value);
 		}
-
 		public static void UpdateRtb(RichTextBox rtb, string text, bool noBreakLines) {
 			try {
 				text = text.Replace("\r", "").Replace("\\\"", "\"");
@@ -375,7 +363,7 @@ namespace TokeiLibrary {
 					}
 				}
 
-				text = text.Trim(new char[] { '\r', '\n' });
+				text = text.Trim(new char[] {'\r', '\n'});
 
 				SolidColorBrush currentBrush = Brushes.Black;
 				Paragraph par = new Paragraph();
@@ -515,22 +503,6 @@ namespace TokeiLibrary {
 			}
 
 			return new string[] { };
-		}
-
-		public static void LoadViewFromUri(this Control userControl, string baseUri) {
-			try {
-				var resourceLocater = new Uri(baseUri, UriKind.Relative);
-				var exprCa = (PackagePart)typeof(Application).GetMethod("GetResourceOrContentPart", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[] { resourceLocater });
-				var stream = exprCa.GetStream();
-				var uri = new Uri((Uri)typeof(BaseUriHelper).GetProperty("PackAppBaseUri", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null, null), resourceLocater);
-				var parserContext = new ParserContext {
-					BaseUri = uri
-				};
-				typeof(XamlReader).GetMethod("LoadBaml", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[] { stream, parserContext, userControl, true });
-			}
-			catch (Exception) {
-				//log
-			}
 		}
 	}
 }
