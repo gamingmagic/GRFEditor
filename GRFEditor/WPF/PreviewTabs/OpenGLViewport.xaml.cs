@@ -43,7 +43,6 @@ namespace GRFEditor.WPF.PreviewTabs {
 			if (!_loaded)
 				return;
 
-			_primary.MakeCurrent();
 			GL.Viewport(0, 0, _primary.Width, _primary.Height);
 		}
 
@@ -72,7 +71,7 @@ namespace GRFEditor.WPF.PreviewTabs {
 		private void _loadStr(Str str, string relativePath, GrfHolder grf) {
 			Grf = grf;
 			RelativePath = relativePath;
-			
+
 			foreach (var layer in _objects.OfType<GLLayer>()) {
 				for (int index = 0; index < layer.TextureIds.Count; index++) {
 					var texture = layer.TextureIds[index];
@@ -107,12 +106,9 @@ namespace GRFEditor.WPF.PreviewTabs {
 		public GrfHolder Grf { get; set; }
 
 		private void _primary_Paint(object sender, PaintEventArgs e) {
-			if (Str == null)
-				return;
 			if (e == null && !_loaded)
 				return;
 
-			_primary.MakeCurrent();
 			GL.Clear(ClearBufferMask.ColorBufferBit);
 			GL.Disable(EnableCap.Blend);
 
@@ -130,8 +126,11 @@ namespace GRFEditor.WPF.PreviewTabs {
 			}
 
 			// Swap the front and back buffers
-			GL.Flush();
 			_primary.SwapBuffers();
+		}
+
+		public void Test() {
+			this.FrameIndex = 0;
 		}
 
 		public void Load(Str str, string relativePath, GrfHolder grf) {

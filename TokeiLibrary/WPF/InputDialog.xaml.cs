@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -17,17 +16,6 @@ namespace TokeiLibrary.WPF {
 	public partial class InputDialog : TkWindow {
 		private readonly bool _checkInvalidCharacters;
 		public string Input;
-		private static bool _skipAndRememberInput;
-		private static Dictionary<string, string> _inputs = new Dictionary<string, string>();
-		private string _key;
-
-		public static bool SkipAndRememberInput {
-			get { return _skipAndRememberInput; }
-			set {
-				_skipAndRememberInput = value;
-				_inputs.Clear();
-			}
-		}
 
 		public InputDialog(string message, string title, string defaultValue) : this(message, title, defaultValue, false, false) {
 		}
@@ -41,17 +29,6 @@ namespace TokeiLibrary.WPF {
 			Input = def;
 			_checkInvalidCharacters = checkInvalidCharacters;
 			_textBoxInput.Loaded += new RoutedEventHandler(_textBoxInput_Loaded);
-
-			if (SkipAndRememberInput) {
-				this.Loaded += delegate {
-					_key = message + title + def;
-
-					if (_inputs.ContainsKey(_key)) {
-						_textBoxInput.Text = _inputs[_key];
-						DialogResult = true;
-					}
-				};
-			}
 		}
 
 		public TextBox TextBoxInput {
@@ -95,10 +72,6 @@ namespace TokeiLibrary.WPF {
 						break;
 					}
 				}
-			}
-
-			if (SkipAndRememberInput) {
-				_inputs[_key] = Input;
 			}
 
 			base.OnClosing(e);

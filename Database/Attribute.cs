@@ -29,7 +29,6 @@ namespace Database {
 		public bool IsDisplayAttribute { get; set; }
 		public bool IsSkippable { get; set; }
 		public bool IsEnabled { get; set; }
-		public AttributeList Parent { get; internal set; }
 
 		public DbRequirement Requirements {
 			get { return _requirements; }
