@@ -69,15 +69,6 @@ namespace GRF.FileFormats.RswFormat {
 			}
 		}
 
-		public RswWater(RswWater water) {
-			WaveHeight = water.WaveHeight;
-			Level = water.Level;
-			WaveSpeed = water.WaveSpeed;
-			WavePitch = water.WavePitch;
-			Type = water.Type;
-			TextureCycling = water.TextureCycling;
-		}
-
 		/// <summary>
 		/// Gets or sets the level.
 		/// </summary>

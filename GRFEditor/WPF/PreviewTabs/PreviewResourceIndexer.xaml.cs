@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using ErrorManager;
+using GRF;
 using GRF.Core;
 using GRF.Core.GroupedGrf;
 using GRF.IO;
@@ -15,8 +18,10 @@ using GRFEditor.Core;
 using GRFEditor.Core.Services;
 using GRFEditor.Tools.MapExtractor;
 using GrfToWpfBridge.Application;
+using GrfToWpfBridge.MultiGrf;
 using TokeiLibrary;
 using TokeiLibrary.WPF.Styles;
+using TokeiLibrary.WPF.Styles.ListView;
 using Utilities;
 using OpeningService = Utilities.Services.OpeningService;
 
@@ -28,10 +33,13 @@ namespace GRFEditor.WPF.PreviewTabs {
 		private readonly AsyncOperation _asyncOperation;
 		private readonly GrfHolder _grf;
 		private readonly GrfIndexor _indexer = new GrfIndexor();
+		private readonly ObservableCollection<TkPathView> _itemsSource = new ObservableCollection<TkPathView>();
 		private readonly object _lock = new object();
+		private readonly MultiGrfReader _metaGrf = new MultiGrfReader();
 		private string _destinationPath;
 		private string _fileName;
-		private bool _reloadIndex = true;
+		private List<string> _oldResources = new List<string>();
+		private bool _requiresMetaGrfReload = true;
 		private float _subIndex;
 
 		public PreviewResourceIndexer() {
@@ -46,18 +54,21 @@ namespace GRFEditor.WPF.PreviewTabs {
 
 			InitializeComponent();
 
-			_tree.CopyMethod = delegate {
-				if (_tree.SelectedItem != null)
-					Clipboard.SetDataObject(((MapExtractorTreeViewItem)_tree.SelectedItem).ResourcePath.RelativePath);
-			};
-
 			_labelHeader.Dispatch(p => p.Content = "Searching usages of " + Path.GetFileName(_fileName));
 			ShowInTaskbar = true;
 
+			ListViewDataTemplateHelper.GenerateListViewTemplateNew(_itemsResources, new ListViewDataTemplateHelper.GeneralColumnInfo[] {
+				new ListViewDataTemplateHelper.ImageColumnInfo { Header = "", DisplayExpression = "DataImage", FixedWidth = 30, MaxHeight = 60 },
+				new ListViewDataTemplateHelper.GeneralColumnInfo { Header = "TK Path", DisplayExpression = "DisplayFileName", FixedWidth = 100, ToolTipBinding = "DisplayFileName", TextAlignment = TextAlignment.Left, IsFill = true }
+			}, null, new string[] { "FileNotFound", "Red" });
+
+			_itemsResources.ItemsSource = _itemsSource;
+
 			_asyncOperation = new AsyncOperation(_progressBarComponent);
 
+			_loadResourcesInfo();
 			_asyncOperation.SetAndRunOperation(new GrfThread(() => _updateMapFiles(_fileName, null), this, 200, null, false, true));
-			_quickPreview.Set(_asyncOperation);
+			_quickPreview.Set(_asyncOperation, _metaGrf);
 
 			_tree.DoDragDropCustomMethod = delegate {
 				VirtualFileDataObjectProgress vfop = new VirtualFileDataObjectProgress();
@@ -71,7 +82,7 @@ namespace GRFEditor.WPF.PreviewTabs {
 				List<VirtualFileDataObject.FileDescriptor> descriptors = allNodes.Select(node => new VirtualFileDataObject.FileDescriptor {
 					Name = Path.GetFileName(node.ResourcePath.RelativePath),
 					FilePath = node.ResourcePath.RelativePath,
-					Argument = GrfEditorConfiguration.Resources.MultiGrf,
+					Argument = _metaGrf,
 					StreamContents = (grfData, filePath, stream, argument) => {
 						MultiGrfReader metaGrf = (MultiGrfReader) argument;
 
@@ -93,17 +104,6 @@ namespace GRFEditor.WPF.PreviewTabs {
 					ErrorHandler.HandleException(err);
 				}
 			};
-
-			_itemsResources2.SaveResourceMethod = v => GrfEditorConfiguration.Resources.SaveResources(v);
-			_itemsResources2.LoadResourceMethod = () => GrfEditorConfiguration.Resources.LoadResources();
-			GrfEditorConfiguration.Resources.Modified += delegate {
-				_itemsResources2.LoadResourcesInfo();
-				_reloadIndex = true;
-				_asyncOperation.SetAndRunOperation(new GrfThread(() => _updateMapFiles(_fileName, null), this, 200, null, false, true));
-			};
-			_itemsResources2.LoadResourcesInfo();
-			_itemsResources2.CanDeleteMainGrf = false;
-			_progressBarComponent.SetSpecialState(TkProgressBar.ProgressStatus.Finished);
 		}
 
 		#region IDisposable Members
@@ -123,8 +123,37 @@ namespace GRFEditor.WPF.PreviewTabs {
 
 		#endregion
 
+		private void _loadResourcesInfo() {
+			List<string> resources = Methods.StringToList(GrfEditorConfiguration.MapExtractorResources);
+
+			if (!resources.Any(p => p.StartsWith(GrfStrings.CurrentlyOpenedGrf + _grf.FileName))) {
+				resources.Insert(0, GrfStrings.CurrentlyOpenedGrf + _grf.FileName);
+			}
+
+			resources = resources.Where(p => File.Exists(p) || Directory.Exists(p) || p.StartsWith(GrfStrings.CurrentlyOpenedGrf + _grf.FileName)).ToList();
+
+			if (resources.Count != _oldResources.Count)
+				_requiresMetaGrfReload = true;
+			else {
+				for (int i = 0; i < _oldResources.Count; i++) {
+					if (_oldResources[i] != resources[i])
+						_requiresMetaGrfReload = true;
+				}
+			}
+
+			foreach (string resourcePath in resources) {
+				_itemsSource.Add(new TkPathView(new TkPath(resourcePath)));
+			}
+
+			_oldResources = new List<string>(resources);
+		}
+
+		private void _saveResourcesInfo() {
+			GrfEditorConfiguration.MapExtractorResources = Methods.ListToString(_itemsSource.Select(p => p.Path.GetFullPath()).ToList());
+		}
+
 		private void _update(float val) {
-			Progress = val / GrfEditorConfiguration.Resources.LoadResources().Count + (_subIndex / GrfEditorConfiguration.Resources.LoadResources().Count * 100f);
+			Progress = val / _itemsSource.Count + (_subIndex / _itemsSource.Count * 100f);
 		}
 
 		private void _updateMapFiles(string fileName, Func<bool> cancelMethod) {
@@ -139,26 +168,26 @@ namespace GRFEditor.WPF.PreviewTabs {
 					_tree.Dispatch(p => p.Items.Clear());
 					_quickPreview.ClearPreview();
 
-					if (_reloadIndex) {
+					if (_requiresMetaGrfReload) {
+						_metaGrf.Update(_itemsSource.Select(p => p.Path).ToList(), _grf);
 						_indexer.Clear();
 
-						var paths = GrfEditorConfiguration.Resources.LoadResources();
-
-						for (int index = 0; index < paths.Count; index++) {
-							var path = paths[index];
+						for (int index = 0; index < _itemsSource.Count; index++) {
+							TkPathView view = _itemsSource[index];
 
 							try {
 								_subIndex = index;
-								_indexer.Add(path, GrfEditorConfiguration.Resources.MultiGrf, _update);
+								_indexer.Add(view.Path, _metaGrf, _update);
 							}
 							catch {
 								// May come from closing the window...!
 								return;
+								//ErrorHandler.HandleException(err);
 							}
 						}
-
-						_reloadIndex = false;
 					}
+
+					_requiresMetaGrfReload = false;
 
 					if (cancelMethod != null && cancelMethod()) return;
 
@@ -168,7 +197,7 @@ namespace GRFEditor.WPF.PreviewTabs {
 
 					_tree.Dispatcher.Invoke(new Action(delegate {
 						foreach (MapExtractorTreeViewItem node in _tree.Items) {
-							if (node.IsChecked == true) {
+							if (node.CheckBoxHeader.IsChecked == true) {
 								node.IsExpanded = true;
 							}
 						}
@@ -176,6 +205,7 @@ namespace GRFEditor.WPF.PreviewTabs {
 				}
 			}
 			catch (Exception err) {
+				_requiresMetaGrfReload = true;
 				ErrorHandler.HandleException(err);
 			}
 			finally {
@@ -194,15 +224,15 @@ namespace GRFEditor.WPF.PreviewTabs {
 				MapExtractorTreeViewItem mainNode = (MapExtractorTreeViewItem) _tree.Dispatcher.Invoke(new Func<MapExtractorTreeViewItem>(() => new MapExtractorTreeViewItem(_tree)));
 				string header = Path.GetFileName(relativePath);
 
-				mainNode.Dispatch(p => p.Checked += new RoutedEventHandler(_checkBox_Checked));
-				mainNode.Dispatch(p => p.Unchecked += new RoutedEventHandler(_checkBox_Unchecked));
+				mainNode.Dispatch(p => p.CheckBoxHeader.Checked += new RoutedEventHandler(_checkBox_Checked));
+				mainNode.Dispatch(p => p.CheckBoxHeader.Unchecked += new RoutedEventHandler(_checkBox_Unchecked));
 				mainNode.Dispatch(p => p.HeaderText = header);
 
-				if (GrfEditorConfiguration.Resources.MultiGrf.GetData(relativePath) == null) {
+				if (_metaGrf.GetData(relativePath) == null) {
 					mainNode.Dispatch(p => p.ResourcePath = null);
 				}
 				else {
-					mainNode.Dispatch(p => p.ResourcePath = GrfEditorConfiguration.Resources.MultiGrf.FindTkPath(relativePath));
+					mainNode.Dispatch(p => p.ResourcePath = _metaGrf.FindTkPath(relativePath));
 				}
 
 				if (parent != null)
@@ -211,7 +241,7 @@ namespace GRFEditor.WPF.PreviewTabs {
 					_tree.Dispatch(p => p.Items.Add(mainNode));
 
 				if (mainNode.ResourcePath != null) {
-					mainNode.Dispatch(p => p.IsChecked = isChecked);
+					mainNode.Dispatch(p => p.CheckBoxHeader.IsChecked = isChecked);
 
 					if (cancelMethod != null && cancelMethod()) return;
 
@@ -232,20 +262,20 @@ namespace GRFEditor.WPF.PreviewTabs {
 
 		private void _disableNode(MapExtractorTreeViewItem gndTextureNode) {
 			gndTextureNode.Dispatcher.Invoke(new Action(delegate {
-				gndTextureNode.IsEnabled = false;
-				gndTextureNode.CheckBoxHeaderIsEnabled = false;
+				gndTextureNode.CheckBoxHeader.IsEnabled = false;
+				gndTextureNode.TextBlock.Foreground = new SolidColorBrush(Colors.Red);
 				gndTextureNode.ResourcePath = null;
 			}));
 		}
 
 		private void _checkBox_Checked(object sender, RoutedEventArgs e) {
 			try {
-				MapExtractorTreeViewItem item = sender as MapExtractorTreeViewItem;
+				MapExtractorTreeViewItem item = WpfUtilities.FindParentControl<MapExtractorTreeViewItem>(sender as DependencyObject);
 
 				if (item != null) {
 					foreach (MapExtractorTreeViewItem tvi in item.Items) {
-						if (tvi.IsEnabled)
-							tvi.IsChecked = true;
+						if (tvi.CheckBoxHeader.IsEnabled)
+							tvi.CheckBoxHeader.IsChecked = true;
 					}
 
 					_checkParents(item, true);
@@ -258,12 +288,12 @@ namespace GRFEditor.WPF.PreviewTabs {
 
 		private void _checkBox_Unchecked(object sender, RoutedEventArgs e) {
 			try {
-				MapExtractorTreeViewItem item = sender as MapExtractorTreeViewItem;
+				MapExtractorTreeViewItem item = WpfUtilities.FindParentControl<MapExtractorTreeViewItem>(sender as DependencyObject);
 
 				if (item != null) {
 					foreach (MapExtractorTreeViewItem tvi in item.Items) {
-						if (tvi.IsEnabled)
-							tvi.IsChecked = false;
+						if (tvi.CheckBoxHeader.IsEnabled)
+							tvi.CheckBoxHeader.IsChecked = false;
 					}
 
 					_checkParents(item, false);
@@ -283,18 +313,18 @@ namespace GRFEditor.WPF.PreviewTabs {
 						bool allChildrenEqualValue = true;
 
 						foreach (MapExtractorTreeViewItem child in parent.Items) {
-							if (child.IsEnabled && child.IsChecked != value) {
+							if (child.CheckBoxHeader.IsEnabled && child.CheckBoxHeader.IsChecked != value) {
 								allChildrenEqualValue = false;
 								break;
 							}
 						}
 
 						if (allChildrenEqualValue) {
-							parent.IsChecked = value;
+							parent.CheckBoxHeader.IsChecked = value;
 							_checkParents(parent, value);
 						}
-						else if (parent.IsChecked != value) {
-							parent.IsChecked = null;
+						else if (parent.CheckBoxHeader.IsChecked != value) {
+							parent.CheckBoxHeader.IsChecked = null;
 
 							_checkParents(parent, value);
 						}
@@ -306,8 +336,120 @@ namespace GRFEditor.WPF.PreviewTabs {
 			}
 		}
 
+		private void _itemsResources_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e) {
+			try {
+				object item = _itemsResources.InputHitTest(e.GetPosition(_itemsResources));
+
+				if (item is ScrollViewer) {
+					e.Handled = true;
+					return;
+				}
+
+				e.Handled = false;
+			}
+			catch (Exception err) {
+				ErrorHandler.HandleException(err);
+			}
+		}
+
+		private void _itemsResources_DragEnter(object sender, DragEventArgs e) {
+			e.Effects = DragDropEffects.Copy;
+		}
+
+		private void _itemsResources_Drop(object sender, DragEventArgs e) {
+			try {
+				if (e.Data.GetDataPresent(DataFormats.FileDrop, true)) {
+					string[] files = e.Data.GetData(DataFormats.FileDrop, true) as string[];
+
+					if (files != null) {
+						foreach (string file in files) {
+							_requiresMetaGrfReload = true;
+							_itemsSource.Add(new TkPathView(new TkPath { FilePath = file }));
+						}
+
+						_saveResourcesInfo();
+						_asyncOperation.SetAndRunOperation(new GrfThread(() => _updateMapFiles(_fileName, null), this, 200, null, false, true));
+					}
+
+					e.Handled = true;
+				}
+			}
+			catch (Exception err) {
+				ErrorHandler.HandleException(err);
+			}
+		}
+
+		private void _menuItemsDelete_Click(object sender, RoutedEventArgs e) {
+			try {
+				for (int index = 0; index < _itemsResources.SelectedItems.Count; index++) {
+					TkPathView rme = (TkPathView) _itemsResources.SelectedItems[index];
+					_itemsSource.Remove(rme);
+					index--;
+				}
+
+				_requiresMetaGrfReload = true;
+				_saveResourcesInfo();
+				_asyncOperation.SetAndRunOperation(new GrfThread(() => _updateMapFiles(_fileName, null), this, 200, null, false, true));
+			}
+			catch (Exception err) {
+				ErrorHandler.HandleException(err);
+			}
+		}
+
+		private void _menuItemsMoveDown_Click(object sender, RoutedEventArgs e) {
+			if (_itemsResources.SelectedItem != null) {
+				TkPathView rme = (TkPathView) _itemsResources.SelectedItem;
+
+				if (_itemsSource.Count <= 1)
+					return;
+
+				int index = _getIndex(rme);
+
+				if (index < _itemsSource.Count - 1 && !_asyncOperation.IsRunning) {
+					_requiresMetaGrfReload = true;
+					TkPathView old = _itemsSource[index + 1];
+					_itemsSource.RemoveAt(index + 1);
+					_itemsSource.Insert(index, old);
+
+					_saveResourcesInfo();
+					_asyncOperation.SetAndRunOperation(new GrfThread(() => _updateMapFiles(_fileName, null), this, 200, null, false, true));
+				}
+			}
+		}
+
+		private void _menuItemsMoveUp_Click(object sender, RoutedEventArgs e) {
+			if (_itemsResources.SelectedItem != null) {
+				TkPathView rme = (TkPathView) _itemsResources.SelectedItem;
+
+				if (_itemsSource.Count <= 1)
+					return;
+
+				int index = _getIndex(rme);
+
+				if (index > 0 && !_asyncOperation.IsRunning) {
+					_requiresMetaGrfReload = true;
+					TkPathView old = _itemsSource[index - 1];
+					_itemsSource.RemoveAt(index - 1);
+					_itemsSource.Insert(index, old);
+
+					_saveResourcesInfo();
+					_asyncOperation.SetAndRunOperation(new GrfThread(() => _updateMapFiles(_fileName, null), this, 200, null, false, true));
+				}
+			}
+		}
+
+		private int _getIndex(TkPathView rme) {
+			for (int i = 0; i < _itemsSource.Count; i++) {
+				if (_itemsSource[i] == rme)
+					return i;
+			}
+
+			return -1;
+		}
+
 		private void _buttonRebuild_Click(object sender, RoutedEventArgs e) {
 			_indexer.DeleteIndexes();
+			_requiresMetaGrfReload = true;
 			_asyncOperation.SetAndRunOperation(new GrfThread(() => _updateMapFiles(_fileName, null), this, 200, null, false, true));
 		}
 
@@ -351,16 +493,16 @@ namespace GRFEditor.WPF.PreviewTabs {
 				MapExtractorTreeViewItem tvi = (MapExtractorTreeViewItem) _tree.SelectedItem;
 
 				if (tvi.ResourcePath != null) {
-					tvi.Checked -= _checkBox_Checked;
-					tvi.IsChecked = true;
-					tvi.Checked += _checkBox_Checked;
+					tvi.CheckBoxHeader.Checked -= _checkBox_Checked;
+					tvi.CheckBoxHeader.IsChecked = true;
+					tvi.CheckBoxHeader.Checked += _checkBox_Checked;
 				}
 
 				foreach (MapExtractorTreeViewItem child in tvi.Items) {
 					if (child.ResourcePath == null)
 						continue;
 
-					child.Checked -= _checkBox_Checked;
+					child.CheckBoxHeader.Checked -= _checkBox_Checked;
 
 					bool allChecked = true;
 
@@ -368,26 +510,26 @@ namespace GRFEditor.WPF.PreviewTabs {
 						if (subChild.ResourcePath == null)
 							continue;
 
-						if (subChild.IsChecked != true) {
+						if (subChild.CheckBoxHeader.IsChecked != true) {
 							allChecked = false;
 						}
 					}
 
 					if (!allChecked) {
-						child.IsChecked = null;
+						child.CheckBoxHeader.IsChecked = null;
 
-						tvi.Checked -= _checkBox_Checked;
-						tvi.IsChecked = null;
-						tvi.Checked += _checkBox_Checked;
+						tvi.CheckBoxHeader.Checked -= _checkBox_Checked;
+						tvi.CheckBoxHeader.IsChecked = null;
+						tvi.CheckBoxHeader.Checked += _checkBox_Checked;
 					}
 					else {
-						child.IsChecked = true;
+						child.CheckBoxHeader.IsChecked = true;
 					}
 
-					child.Checked += _checkBox_Checked;
+					child.CheckBoxHeader.Checked += _checkBox_Checked;
 				}
 
-				if (tvi.IsChecked == true) {
+				if (tvi.CheckBoxHeader.IsChecked == true) {
 					_checkParents(tvi, true);
 				}
 			}
@@ -396,22 +538,24 @@ namespace GRFEditor.WPF.PreviewTabs {
 		public void Update(object selectedItem) {
 			if (selectedItem is FileEntry) {
 				_fileName = ((FileEntry) selectedItem).RelativePath;
-				_labelHeader.Dispatch(p => p.Content = "Searching usages of " + Path.GetFileName(_fileName));
+
 				_asyncOperation.SetAndRunOperation(new GrfThread(() => _updateMapFiles(_fileName, null), this, 200, null, false, true));
 			}
 		}
 
 		private void _tree_MouseRightButtonUp(object sender, MouseButtonEventArgs e) {
-			TreeViewItem item = WpfUtilities.GetTreeViewItemClicked((FrameworkElement)e.OriginalSource, _tree);
+			try {
+				object item = _itemsResources.InputHitTest(e.GetPosition(_itemsResources));
 
-			if (item != null) {
-				item.IsSelected = true;
-				_tree.ContextMenu.IsOpen = true;
+				if (item is ScrollViewer) {
+					e.Handled = true;
+					return;
+				}
+
 				e.Handled = false;
 			}
-			else {
-				_tree.ContextMenu.IsOpen = false;
-				e.Handled = true;
+			catch (Exception err) {
+				ErrorHandler.HandleException(err);
 			}
 		}
 
@@ -430,7 +574,7 @@ namespace GRFEditor.WPF.PreviewTabs {
 				}
 			}
 			else {
-				if (currentNode.IsChecked != false && currentNode.ResourcePath != null) {
+				if (currentNode.CheckBoxHeader.IsChecked != false && currentNode.ResourcePath != null) {
 					if (currentNode.ResourcePath.RelativePath != null)
 						nodes.Add(currentNode.ResourcePath);
 				}
@@ -458,7 +602,7 @@ namespace GRFEditor.WPF.PreviewTabs {
 					string relativePath = selectedNodes[index].RelativePath;
 					string outputPath = Path.Combine(_destinationPath, relativePath);
 
-					File.WriteAllBytes(outputPath, GrfEditorConfiguration.Resources.MultiGrf.GetData(relativePath));
+					File.WriteAllBytes(outputPath, _metaGrf.GetData(relativePath));
 
 					Progress = (float) (index + 1) / selectedNodes.Count * 100f;
 				}
@@ -498,6 +642,9 @@ namespace GRFEditor.WPF.PreviewTabs {
 			if (disposing) {
 				if (_indexer != null)
 					_indexer.Clear();
+
+				if (_metaGrf != null)
+					_metaGrf.Dispose();
 
 				if (_tree != null)
 					_tree.Dispose();

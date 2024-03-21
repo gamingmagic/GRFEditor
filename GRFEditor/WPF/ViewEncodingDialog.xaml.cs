@@ -10,7 +10,6 @@ using System.Windows.Media;
 using ErrorManager;
 using GRFEditor.ApplicationConfiguration;
 using GRFEditor.Core.Avalon;
-using ICSharpCode.AvalonEdit;
 using TokeiLibrary.WPF.Styles;
 using Utilities;
 using Utilities.Extension;
@@ -57,7 +56,7 @@ namespace GRFEditor.WPF {
 		}
 
 		private void _tb_PreviewKeyDown(object sender, KeyEventArgs e) {
-			var textEditor = (TextEditor)sender;
+			var textEditor = (ICSharpCode.AvalonEdit.TextEditor)sender;
 
 			if (textEditor == null)
 				return;
@@ -79,7 +78,7 @@ namespace GRFEditor.WPF {
 
 		private void _onCloseKey(object sender, KeyEventArgs e) {
 			if (e.Key == Key.Escape) {
-				Close();
+				this.Close();
 			}
 		}
 

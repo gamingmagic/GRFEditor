@@ -6,7 +6,6 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ErrorManager;
 using GRF.FileFormats;
@@ -313,9 +312,7 @@ namespace GRFEditor.Tools.SpriteEditor {
 		}
 
 		private void _menuItemAbout_Click(object sender, RoutedEventArgs e) {
-			var dialog = new AboutDialog(SpriteEditorConfiguration.PublicVersion, SpriteEditorConfiguration.RealVersion, SpriteEditorConfiguration.Author, SpriteEditorConfiguration.ProgramName);
-			dialog.AboutTextBox.Background = FindResource("UIThemeAboutDialogBrush") as Brush;
-			WindowProvider.ShowWindow(dialog, this);
+			WindowProvider.ShowWindow(new AboutDialog(SpriteEditorConfiguration.PublicVersion, SpriteEditorConfiguration.RealVersion, SpriteEditorConfiguration.Author, SpriteEditorConfiguration.ProgramName), this);
 		}
 
 		private void _menuItemClose_Click(object sender, RoutedEventArgs e) {
@@ -397,7 +394,7 @@ namespace GRFEditor.Tools.SpriteEditor {
 
 		private void _listener_MessageReceived(object sender, XDMessageEventArgs e) {
 			if (e.DataGram.Channel == "openSprite") {
-				Activate();
+				this.Activate();
 				//NativeMethods.SetForegroundWindow(this.HandlesScrolling);
 				XDBroadcast.SendToChannel("openSpriteResponse", "grabbed");
 				_openSprite(e.DataGram.Message);

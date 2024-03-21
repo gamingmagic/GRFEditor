@@ -8,7 +8,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using ErrorManager;
+using GRF;
 using GRF.Core;
+using GRF.Core.GroupedGrf;
 using GRF.Threading;
 using GRFEditor.ApplicationConfiguration;
 using GRFEditor.Core.Services;
@@ -16,6 +18,8 @@ using GrfToWpfBridge;
 using TokeiLibrary;
 using TokeiLibrary.WPF.Styles;
 using TokeiLibrary.WPF.Styles.ListView;
+using Utilities;
+using Utilities.Extension;
 using Utilities.Hash;
 using AsyncOperation = GrfToWpfBridge.Application.AsyncOperation;
 using OpeningService = Utilities.Services.OpeningService;
@@ -24,12 +28,14 @@ namespace GRFEditor.Tools.GrfValidation {
 	/// <summary>
 	/// Interaction logic for ValidationDialog.xaml
 	/// </summary>
-	public partial class ValidationDialog : TkWindow, IProgress {
+	public partial class ValidationDialog : TkWindow, IProgress, IDisposable {
 		private readonly string[] _advancedView = new string[] { "List view", "Show the list view" };
 		private readonly string[] _rawView = new string[] { "Raw view", "Show the raw text view" };
 		private readonly AsyncOperation _asyncOperation;
 		private readonly GrfHolder _grfHolder;
 		private readonly Validation _validation = new Validation();
+		private MultiGrfReader _metaGrf = new MultiGrfReader();
+		private bool _requiresMetaGrfReload = true;
 
 		public ValidationDialog(GrfHolder grfHolder)
 			: base("Grf validation", "validity.ico", SizeToContent.Manual, ResizeMode.CanResize) {
@@ -43,20 +49,38 @@ namespace GRFEditor.Tools.GrfValidation {
 			_loadSettingsValidateExtraction();
 			_loadSettingsUI();
 
-			_mViewer.SaveResourceMethod = v => GrfEditorConfiguration.Resources.SaveResources(v);
-			_mViewer.LoadResourceMethod = () => GrfEditorConfiguration.Resources.LoadResources();
-			GrfEditorConfiguration.Resources.Modified += delegate {
-				_mViewer.LoadResourcesInfo();
+			_mViewer.SaveResourceMethod = v => GrfEditorConfiguration.MapExtractorResources = v;
+			_mViewer.LoadResourceMethod = () => {
+				var items = Methods.StringToList(GrfEditorConfiguration.MapExtractorResources);
+
+				if (!items.Contains(GrfStrings.CurrentlyOpenedGrf + _grfHolder.FileName)) {
+					items.RemoveAll(p => p.StartsWith(GrfStrings.CurrentlyOpenedGrf));
+					items.Insert(0, GrfStrings.CurrentlyOpenedGrf + _grfHolder.FileName);
+				}
+
+				return items;
+			};
+
+			_mViewer.Modified += delegate {
+				_requiresMetaGrfReload = true;
 				_asyncOperation.SetAndRunOperation(new GrfThread(_updateResources, this, 200, null, false, true));
 			};
+
 			_mViewer.LoadResourcesInfo();
 			_mViewer.CanDeleteMainGrf = false;
-			_progressBar.SetSpecialState(TkProgressBar.ProgressStatus.Finished);
 
 			Owner = WpfUtilities.TopWindow;
 
 			Binder.Bind(_cbComparisonAlrightm);
 		}
+
+		#region IDisposable Members
+
+		public void Dispose() {
+			Dispose(true);
+		}
+
+		#endregion
 
 		#region IProgress Members
 
@@ -182,7 +206,7 @@ namespace GRFEditor.Tools.GrfValidation {
 
 		private void _buttonValidateContent_Click(object sender, RoutedEventArgs e) {
 			List<Utilities.Extension.Tuple<ValidationTypes, string, string>> errors = new List<Utilities.Extension.Tuple<ValidationTypes, string, string>>();
-			_asyncOperation.SetAndRunOperation(new GrfThread(() => _validation.ValidateContent(errors, _grfHolder, GrfEditorConfiguration.Resources.MultiGrf), _validation, 200, errors), _updateErrors);
+			_asyncOperation.SetAndRunOperation(new GrfThread(() => _validation.ValidateContent(errors, _grfHolder, ref _metaGrf), _validation, 200, errors), _updateErrors);
 		}
 
 		private void _buttonValidateExtraction_Click(object sender, RoutedEventArgs e) {
@@ -252,13 +276,25 @@ namespace GRFEditor.Tools.GrfValidation {
 		private void _updateResources() {
 			try {
 				Progress = -1;
-				GrfEditorConfiguration.Resources.Reload();
+
+				if (_requiresMetaGrfReload)
+					_metaGrf.Update(_mViewer.Paths, _grfHolder);
+
+				_requiresMetaGrfReload = false;
 			}
 			catch (Exception err) {
+				_requiresMetaGrfReload = true;
 				ErrorHandler.HandleException(err);
 			}
 			finally {
 				Progress = 100;
+			}
+		}
+
+		protected void Dispose(bool disposing) {
+			if (disposing) {
+				if (_metaGrf != null)
+					_metaGrf.Dispose();
 			}
 		}
 

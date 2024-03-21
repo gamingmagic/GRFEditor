@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using GRF;
 using GRF.FileFormats.RsmFormat;
 using GRF.IO;
 using OpenTK;
-using Utilities;
 
 namespace GRFEditor.OpenGL.MapComponents {
 	public class Face {
@@ -59,7 +57,7 @@ namespace GRFEditor.OpenGL.MapComponents {
 
 		public Matrix4 Matrix1 { get; set; }
 		public Matrix4 Matrix2 { get; set; }
-		public bool IsAnimated { get; set; }
+		public bool MatrixDirty { get; set; }
 		public RsmBoundingBox Box { get; set; }
 		public RsmBoundingBox LocalBox { get; set; }
 		public Matrix4 RenderMatrix;
@@ -153,25 +151,15 @@ namespace GRFEditor.OpenGL.MapComponents {
 
 			Vertices.Capacity = count = reader.Int32();
 
-			var bytes = reader.Bytes(count * 12);
-			GCHandle handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-			var h = handle.AddrOfPinnedObject();
-			
 			for (int i = 0; i < count; i++) {
-				Vertices.Add((Vector3)Marshal.PtrToStructure(h + 12 * i, typeof(Vector3)));
+				Vertices.Add(new Vector3(reader.Float(), reader.Float(), reader.Float()));
 			}
-			
-			handle.Free();
-
-			//for (int i = 0; i < count; i++) {
-			//	Vertices.Add(new Vector3(reader.Float(), reader.Float(), reader.Float()));
-			//}
 
 			TextureVertices.Capacity = count = reader.Int32();
 
 			for (int i = 0; i < count; i++) {
 				if (version >= 1.2)
-					reader.Forward(4);	// Color, skip
+					reader.UInt32();	// Color, skip
 
 				TextureVertices.Add(new Vector2(reader.Float(), reader.Float()));
 			}
@@ -207,7 +195,7 @@ namespace GRFEditor.OpenGL.MapComponents {
 						reader.Forward(len - 32);
 				}
 
-				face.Normal = Vector3.NormalizeFast(Vector3.Cross(
+				face.Normal = Vector3.Normalize(Vector3.Cross(
 					Vertices[face.VertexIds[1]] - Vertices[face.VertexIds[0]],
 					Vertices[face.VertexIds[2]] - Vertices[face.VertexIds[0]]
 				));
@@ -260,7 +248,7 @@ namespace GRFEditor.OpenGL.MapComponents {
 					}
 				
 					for (int i = 0; i < 3; i++) {
-						face.VertexNormals[i] = Vector3.NormalizeFast(face.VertexNormals[i]);
+						face.VertexNormals[i] = Vector3.Normalize(face.VertexNormals[i]);
 					}
 				}
 			}
@@ -278,7 +266,7 @@ namespace GRFEditor.OpenGL.MapComponents {
 
 				foreach (var face in Faces) {
 					for (int i = 0; i < 3; i++) {
-						face.VertexNormals[i] = Vector3.NormalizeFast(groups[face.TextureId][face.VertexIds[i]]);
+						face.VertexNormals[i] = Vector3.Normalize(groups[face.TextureId][face.VertexIds[i]]);
 					}
 				}
 			}
@@ -289,10 +277,9 @@ namespace GRFEditor.OpenGL.MapComponents {
 				for (int i = 0; i < count; i++) {
 					ScaleKeyFrames.Add(new ScaleKeyFrame {
 						Frame = reader.Int32(),
-						Scale = new Vector3(reader.Float(), reader.Float(), reader.Float())
+						Scale = new Vector3(reader.Float(), reader.Float(), reader.Float()),
+						Data = reader.Float()
 					});
-
-					reader.Forward(4);
 				}
 			}
 
@@ -319,10 +306,9 @@ namespace GRFEditor.OpenGL.MapComponents {
 				for (int i = 0; i < count; i++) {
 					PosKeyFrames.Add(new PosKeyFrame {
 						Frame = reader.Int32(),
-						Position = new Vector3(reader.Float(), reader.Float(), reader.Float())
+						Position = new Vector3(reader.Float(), reader.Float(), reader.Float()),
+						Data = reader.Int32()
 					});
-
-					reader.Forward(4);
 				}
 			}
 
@@ -356,7 +342,7 @@ namespace GRFEditor.OpenGL.MapComponents {
 			return "Name = " + Name;
 		}
 
-		public void CalcMatrix1() {
+		public void CalcMatrix1(int time) {
 			Matrix1 = Matrix4.Identity;
 
 			if (Model.Version < 2.2) {
@@ -410,22 +396,17 @@ namespace GRFEditor.OpenGL.MapComponents {
 
 				if (ScaleKeyFrames.Count > 0) {
 					float animationFrame = Model.AnimationIndexFloat % Math.Max(1, Model.AnimationLength);
-					//int prevIndex = -1;
-					//int nextIndex = -1;
-					//
-					//while (true) {
-					//	nextIndex++;
-					//	
-					//	if (nextIndex == ScaleKeyFrames.Count || animationFrame < ScaleKeyFrames[nextIndex].Frame)
-					//		break;
-					//
-					//	prevIndex++;
-					//}
-
 					int prevIndex = -1;
 					int nextIndex = -1;
 
-					_findIndex(animationFrame, ref prevIndex, ref nextIndex, ScaleKeyFrames);
+					while (true) {
+						nextIndex++;
+						
+						if (nextIndex == ScaleKeyFrames.Count || animationFrame < ScaleKeyFrames[nextIndex].Frame)
+							break;
+
+						prevIndex++;
+					}
 
 					float prevTick = prevIndex < 0 ? 0 : ScaleKeyFrames[prevIndex].Frame;
 					float nextTick = nextIndex == ScaleKeyFrames.Count ? Model.AnimationLength : ScaleKeyFrames[nextIndex].Frame;
@@ -438,22 +419,17 @@ namespace GRFEditor.OpenGL.MapComponents {
 
 				if (RotationKeyFrames.Count > 0) {
 					float animationFrame = Model.AnimationIndexFloat % Math.Max(1, Model.AnimationLength);
-					//int prevIndex = -1;
-					//int nextIndex = -1;
-					//
-					//while (true) {
-					//	nextIndex++;
-					//
-					//	if (nextIndex == RotationKeyFrames.Count || animationFrame < RotationKeyFrames[nextIndex].Frame)
-					//		break;
-					//
-					//	prevIndex++;
-					//}
-
 					int prevIndex = -1;
 					int nextIndex = -1;
 
-					_findIndex(animationFrame, ref prevIndex, ref nextIndex, RotationKeyFrames);
+					while (true) {
+						nextIndex++;
+
+						if (nextIndex == RotationKeyFrames.Count || animationFrame < RotationKeyFrames[nextIndex].Frame)
+							break;
+
+						prevIndex++;
+					}
 
 					float prevTick = prevIndex < 0 ? 0 : RotationKeyFrames[prevIndex].Frame;
 					float nextTick = nextIndex == RotationKeyFrames.Count ? Model.AnimationLength : RotationKeyFrames[nextIndex].Frame;
@@ -476,22 +452,17 @@ namespace GRFEditor.OpenGL.MapComponents {
 
 				if (PosKeyFrames.Count > 0) {
 					float animationFrame = Model.AnimationIndexFloat % Math.Max(1, Model.AnimationLength);
-					//int prevIndex = -1;
-					//int nextIndex = -1;
-					//
-					//while (true) {
-					//	nextIndex++;
-					//
-					//	if (nextIndex == PosKeyFrames.Count || animationFrame < PosKeyFrames[nextIndex].Frame)
-					//		break;
-					//
-					//	prevIndex++;
-					//}
-
 					int prevIndex = -1;
 					int nextIndex = -1;
 
-					_findIndex(animationFrame, ref prevIndex, ref nextIndex, PosKeyFrames);
+					while (true) {
+						nextIndex++;
+
+						if (nextIndex == PosKeyFrames.Count || animationFrame < PosKeyFrames[nextIndex].Frame)
+							break;
+
+						prevIndex++;
+					}
 
 					float prevTick = prevIndex < 0 ? 0 : PosKeyFrames[prevIndex].Frame;
 					float nextTick = nextIndex == PosKeyFrames.Count ? Model.AnimationLength : PosKeyFrames[nextIndex].Frame;
@@ -503,11 +474,11 @@ namespace GRFEditor.OpenGL.MapComponents {
 				}
 				else {
 					if (Parent != null) {
-						position = Position_ - Parent.Position_;
+						position = this.Position_ - Parent.Position_;
 						position = new Vector3(new Vector4(position.X, position.Y, position.Z, 0) * Parent.InvertTransformationMatrix);
 					}
 					else {
-						position = Position_;
+						position = this.Position_;
 					}
 				}
 				
@@ -532,89 +503,8 @@ namespace GRFEditor.OpenGL.MapComponents {
 			}
 
 			foreach (var child in Children) {
-				child.CalcMatrix1();
+				child.CalcMatrix1(time);
 			}
-		}
-
-		private void _findIndex(float animationFrame, ref int prevIndex, ref int nextIndex, List<ScaleKeyFrame> frames) {
-			int left = 0;
-			int count = frames.Count;
-			int mid = left + count / 2;
-
-			// Handle weirdo cases first
-			if (animationFrame < frames[0].Frame) {
-				nextIndex++;
-				return;
-			}
-
-			while (count > 1) {
-				if (animationFrame < frames[mid].Frame) {
-					count = mid - left;
-					mid = left + count / 2;
-				}
-				else {
-					count -= mid - left;
-					left = mid;
-					mid = left + count / 2;
-				}
-			}
-
-			prevIndex = left;
-			nextIndex = left + 1;
-		}
-
-		private void _findIndex(float animationFrame, ref int prevIndex, ref int nextIndex, List<RotKeyFrame> frames) {
-			int left = 0;
-			int count = frames.Count;
-			int mid = left + count / 2;
-
-			// Handle weirdo cases first
-			if (animationFrame < frames[0].Frame) {
-				nextIndex++;
-				return;
-			}
-
-			while (count > 1) {
-				if (animationFrame < frames[mid].Frame) {
-					count = mid - left;
-					mid = left + count / 2;
-				}
-				else {
-					count -= mid - left;
-					left = mid;
-					mid = left + count / 2;
-				}
-			}
-
-			prevIndex = left;
-			nextIndex = left + 1;
-		}
-
-		private void _findIndex(float animationFrame, ref int prevIndex, ref int nextIndex, List<PosKeyFrame> frames) {
-			int left = 0;
-			int count = frames.Count;
-			int mid = left + count / 2;
-
-			// Handle weirdo cases first
-			if (animationFrame < frames[0].Frame) {
-				nextIndex++;
-				return;
-			}
-
-			while (count > 1) {
-				if (animationFrame < frames[mid].Frame) {
-					count = mid - left;
-					mid = left + count / 2;
-				}
-				else {
-					count -= mid - left;
-					left = mid;
-					mid = left + count / 2;
-				}
-			}
-
-			prevIndex = left;
-			nextIndex = left + 1;
 		}
 
 		public void CalcMatrix2() {
@@ -680,7 +570,7 @@ namespace GRFEditor.OpenGL.MapComponents {
 
 		public void SetBoundingBox3(Matrix4 mat, RsmBoundingBox box) {
 			Matrix4 mat1 = Matrix1 * mat;
-			Matrix4 mat2 = Matrix2 * mat1;
+			Matrix4 mat2 = Matrix2 * Matrix1 * mat;
 			LocalBox = new RsmBoundingBox();
 
 			for (int i = 0; i < Faces.Count; i++) {
@@ -694,26 +584,6 @@ namespace GRFEditor.OpenGL.MapComponents {
 			foreach (var child in Children) {
 				child.SetBoundingBox3(mat1, box);
 			}
-		}
-
-		public List<Vector3> GetAllDrawnVertices(Matrix4 mat) {
-			Matrix4 mat1 = Matrix1 * mat;
-			Matrix4 mat2 = Matrix2 * mat1;
-			LocalBox = new RsmBoundingBox();
-			List<Vector3> vertices = new List<Vector3>();
-
-			for (int i = 0; i < Faces.Count; i++) {
-				for (int ii = 0; ii < 3; ii++) {
-					Vector4 v = new Vector4(Vertices[Faces[i].VertexIds[ii]], 1) * mat2;
-					vertices.Add(new Vector3(v));
-				}
-			}
-
-			foreach (var child in Children) {
-				vertices.AddRange(child.GetAllDrawnVertices(mat1));
-			}
-
-			return vertices;
 		}
 
 		public float GetTexture(int textureId, int type) {
@@ -744,15 +614,16 @@ namespace GRFEditor.OpenGL.MapComponents {
 			return mult * (next - prev) + prev;
 		}
 
-		public void SetAnimated(bool isAnimated) {
+		public void Dirty() {
 			if (TextureKeyFrameGroup.Count > 0 || RotationKeyFrames.Count > 0 || ScaleKeyFrames.Count > 0 || PosKeyFrames.Count > 0) {
-				isAnimated = true;
+				MatrixDirty = true;
+			}
+			else if (Parent != null && Parent.MatrixDirty) {
+				MatrixDirty = true;
 			}
 
-			IsAnimated = isAnimated;
-
 			foreach (var child in Children) {
-				child.SetAnimated(isAnimated);
+				child.Dirty();
 			}
 		}
 	}
@@ -838,7 +709,7 @@ namespace GRFEditor.OpenGL.MapComponents {
 			}
 
 			for (int i = 0; i < count; i++) {
-				Meshes.Add(new Mesh(this, reader) { Index = i });
+				Meshes.Add(new Mesh(this, reader) { Index = i, MatrixDirty = Version >= 2.2 });
 			}
 
 			// Resolve parent/child associations
@@ -866,16 +737,16 @@ namespace GRFEditor.OpenGL.MapComponents {
 				for (int i = 0; i < count; i++) {
 					ScaleKeyFrames.Add(new ScaleKeyFrame {
 						Frame = reader.Int32(),
-						Scale = new Vector3(reader.Float(), reader.Float(), reader.Float())
+						Scale = new Vector3(reader.Float(), reader.Float(), reader.Float()),
+						Data = reader.Float()
 					});
-
-					reader.Forward(4);
 				}
 			}
 
+			count = reader.CanRead ? reader.Int32() : 0;
+
 			// Skip volume boxes
 			_updateMatrices();
-			MainMesh.SetAnimated(false);
 			MeshesDirty = true;
 		}
 
@@ -902,23 +773,17 @@ namespace GRFEditor.OpenGL.MapComponents {
 			LocalBox = new RsmBoundingBox();
 			MainMesh.SetBoundingBox(LocalBox);
 
-			MainMesh.CalcMatrix1();
-			
-			if (Version < 2.2) {
-				MainMesh.CalcMatrix2();
-			}
+			MainMesh.CalcMatrix1(0);
+			MainMesh.CalcMatrix2();
 
-			Matrix4 mat = GLHelper.Scale(Matrix4.Identity, new Vector3(1, -1, 1));
+			Matrix4 mat = Matrix4.Identity;
+			mat = GLHelper.Scale(mat, new Vector3(1, -1, 1));
 
 			RealBox = new RsmBoundingBox();
 			MainMesh.SetBoundingBox2(mat, RealBox);
 
 			DrawnBox = new RsmBoundingBox();
 			MainMesh.SetBoundingBox3(mat, DrawnBox);
-
-			if (Version >= 2.2) {
-				MainMesh.CalcMatrix1();
-			}
 		}
 
 		public Rsm(MultiType data)
@@ -957,6 +822,7 @@ namespace GRFEditor.OpenGL.MapComponents {
 
 		public void Dirty() {
 			MeshesDirty = true;
+			MainMesh.Dirty();
 		}
 
 		private List<Mesh> _orderedMeshes;
@@ -984,21 +850,33 @@ namespace GRFEditor.OpenGL.MapComponents {
 	public struct RotKeyFrame {
 		public int Frame;
 		public Quaternion Quaternion;
+
+		public float this[int index] {
+			get {
+				if (index == 0)
+					return Quaternion.X;
+				if (index == 1)
+					return Quaternion.Y;
+				if (index == 2)
+					return Quaternion.Z;
+				if (index == 3)
+					return Quaternion.W;
+
+				throw new ArgumentOutOfRangeException();
+			}
+		}
 	}
 
 	public struct ScaleKeyFrame {
 		public int Frame;
 		public Vector3 Scale;
+		public float Data;
 	}
 
 	public struct PosKeyFrame {
 		public int Frame;
 		public Vector3 Position;
-	}
-
-	public struct KeyFrame {
-		public int Frame;
-		public object Value;
+		public int Data;
 	}
 
 	public class RsmBoundingBox {

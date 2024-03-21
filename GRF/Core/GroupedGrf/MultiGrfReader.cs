@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using ErrorManager;
 using Utilities;
-using Utilities.Extension;
 
 namespace GRF.Core.GroupedGrf {
 	public class MultiGrfReader : IDisposable {
@@ -14,7 +13,6 @@ namespace GRF.Core.GroupedGrf {
 		private readonly MultiFileTable _multiFileTable;
 		private readonly List<string> _paths = new List<string>();
 		private bool _disposed;
-		public bool CurrentGrfAlwaysFirst { get; set; }
 
 		public MultiGrfReader() {
 			_multiFileTable = new MultiFileTable(this);
@@ -114,13 +112,9 @@ namespace GRF.Core.GroupedGrf {
 					_containers.Clear();
 
 					foreach (var path in paths) {
-						var cleanPath = path.FilePath.ReplaceFirst(GrfStrings.CurrentlyOpenedGrf, "");
-
-						if (copy.ContainsKey(cleanPath)) {
-							if (copy[cleanPath] == extraGrf)	// Never keep the current GRF
-								continue;
-							_containers[cleanPath] = copy[cleanPath];
-							copy[cleanPath].Attached["MultiGrfRreader.Delete"] = false;
+						if (copy.ContainsKey(path.FileName)) {
+							_containers[path.FileName] = copy[path.FileName];
+							copy[path.FileName].Attached["MultiGrfRreader.Delete"] = false;
 						}
 					}
 
@@ -146,10 +140,7 @@ namespace GRF.Core.GroupedGrf {
 						}
 					}
 					else if (resource.FilePath.StartsWith(GrfStrings.CurrentlyOpenedGrf)) {
-						if (CurrentGrfAlwaysFirst)
-							_paths.Insert(0, extraGrf.FileName);
-						else
-							_paths.Add(extraGrf.FileName);
+						_paths.Add(extraGrf.FileName);
 
 						if (!_containers.ContainsKey(extraGrf.FileName)) {
 							_containers[extraGrf.FileName] = extraGrf;

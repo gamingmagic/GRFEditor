@@ -22,7 +22,6 @@ using GRFEditor.Core;
 using GRFEditor.Core.Services;
 using GrfToWpfBridge.Application;
 using TokeiLibrary;
-using TokeiLibrary.WPF.Styles;
 using Utilities;
 using Utilities.Extension;
 using Configuration = GRFEditor.ApplicationConfiguration.GrfEditorConfiguration;
@@ -32,26 +31,26 @@ namespace GRFEditor.Tools.MapExtractor {
 	/// <summary>
 	/// Interaction logic for MapExtractor.xaml
 	/// </summary>
-	public partial class MapExtractor : UserControl, IProgress {
+	public partial class MapExtractor : UserControl, IProgress, IDisposable {
 		private readonly AsyncOperation _asyncOperation;
 		private readonly object _lock = new object();
+		private readonly MultiGrfReader _metaGrf;
 		private string _destinationPath;
 		private string _fileName;
 		private GrfHolder _grf;
 		private string _grfPath;
+		private bool _requiresMetaGrfReload = true;
 
 		public MapExtractor(GrfHolder grf, string fileName) {
 			_grfPath = Path.GetDirectoryName(fileName);
 			_grf = grf;
 			_fileName = fileName;
+			//_metaGrf = metaGrf;
+			_metaGrf = new MultiGrfReader();
 
 			InitializeComponent();
 
 			_treeViewMapExtractor.SelectedItemChanged += new RoutedPropertyChangedEventHandler<object>(_treeViewMapExtractor_SelectedItemChanged);
-			_treeViewMapExtractor.CopyMethod = delegate {
-				if (_treeViewMapExtractor.SelectedItem != null)
-					Clipboard.SetDataObject(((MapExtractorTreeViewItem)_treeViewMapExtractor.SelectedItem).ResourcePath.RelativePath);
-			};
 
 			_treeViewMapExtractor.DoDragDropCustomMethod = delegate {
 				VirtualFileDataObjectProgress vfop = new VirtualFileDataObjectProgress();
@@ -65,7 +64,7 @@ namespace GRFEditor.Tools.MapExtractor {
 				List<VirtualFileDataObject.FileDescriptor> descriptors = allNodes.Select(node => new VirtualFileDataObject.FileDescriptor {
 					Name = Path.GetFileName(node.ResourcePath.RelativePath),
 					FilePath = node.ResourcePath.RelativePath,
-					Argument = GrfEditorConfiguration.Resources.MultiGrf,
+					Argument = _metaGrf,
 					StreamContents = (grfData, filePath, stream, argument) => {
 						MultiGrfReader metaGrfArg = (MultiGrfReader) argument;
 
@@ -89,22 +88,39 @@ namespace GRFEditor.Tools.MapExtractor {
 			};
 
 			_asyncOperation = new AsyncOperation(_progressBarComponent);
-			_quickPreview.Set(_asyncOperation);
+			_quickPreview.Set(_asyncOperation, _metaGrf);
 
-			_itemsResources2.SaveResourceMethod = v => Configuration.Resources.SaveResources(v);
-			_itemsResources2.LoadResourceMethod = () => Configuration.Resources.LoadResources();
-			Configuration.Resources.Modified += delegate {
-				_itemsResources2.LoadResourcesInfo();
+			_itemsResources2.SaveResourceMethod = v => Configuration.MapExtractorResources = v;
+			_itemsResources2.LoadResourceMethod = () => {
+				var items = Methods.StringToList(Configuration.MapExtractorResources);
+
+				if (!items.Contains(GrfStrings.CurrentlyOpenedGrf + grf.FileName)) {
+					items.RemoveAll(p => p.StartsWith(GrfStrings.CurrentlyOpenedGrf));
+					items.Insert(0, GrfStrings.CurrentlyOpenedGrf + grf.FileName);
+				}
+
+				return items;
+			};
+			_itemsResources2.Modified += delegate {
+				_requiresMetaGrfReload = true;
 				_asyncOperation.SetAndRunOperation(new GrfThread(() => _updateMapFiles(_fileName, null), this, 200, null, false, true));
 			};
 			_itemsResources2.LoadResourcesInfo();
 			_itemsResources2.CanDeleteMainGrf = false;
-			_progressBarComponent.SetSpecialState(TkProgressBar.ProgressStatus.Finished);
 		}
 
 		public AsyncOperation AsyncOperation {
 			get { return _asyncOperation; }
 		}
+
+		#region IDisposable Members
+
+		public void Dispose() {
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		#endregion
 
 		#region IProgress Members
 
@@ -157,7 +173,8 @@ namespace GRFEditor.Tools.MapExtractor {
 
 		private void _disableNode(MapExtractorTreeViewItem gndTextureNode) {
 			gndTextureNode.Dispatcher.Invoke(new Action(delegate {
-				gndTextureNode.CheckBoxHeaderIsEnabled = false;
+				gndTextureNode.CheckBoxHeader.IsEnabled = false;
+				gndTextureNode.TextBlock.Foreground = new SolidColorBrush(Colors.Red);
 				gndTextureNode.ResourcePath = null;
 			}));
 		}
@@ -171,18 +188,18 @@ namespace GRFEditor.Tools.MapExtractor {
 						bool allChildrenEqualValue = true;
 
 						foreach (MapExtractorTreeViewItem child in parent.Items) {
-							if (child.CheckBoxHeaderIsEnabled && child.IsChecked != value) {
+							if (child.CheckBoxHeader.IsEnabled && child.CheckBoxHeader.IsChecked != value) {
 								allChildrenEqualValue = false;
 								break;
 							}
 						}
 
 						if (allChildrenEqualValue) {
-							parent.IsChecked = value;
+							parent.CheckBoxHeader.IsChecked = value;
 							_checkParents(parent, value);
 						}
-						else if (parent.IsChecked != value) {
-							parent.IsChecked = null;
+						else if (parent.CheckBoxHeader.IsChecked != value) {
+							parent.CheckBoxHeader.IsChecked = null;
 
 							_checkParents(parent, value);
 						}
@@ -211,7 +228,7 @@ namespace GRFEditor.Tools.MapExtractor {
 
 					string outputPath = Path.Combine(_destinationPath, relativePath);
 
-					File.WriteAllBytes(outputPath, GrfEditorConfiguration.Resources.MultiGrf.GetData(relativePath));
+					File.WriteAllBytes(outputPath, _metaGrf.GetData(relativePath));
 
 					Progress = (float) (index + 1) / selectedNodes.Count * 100f;
 				}
@@ -248,6 +265,11 @@ namespace GRFEditor.Tools.MapExtractor {
 					_treeViewMapExtractor.Dispatch(p => p.Items.Clear());
 					_quickPreview.ClearPreview();
 
+					if (_requiresMetaGrfReload)
+						_metaGrf.Update(_itemsResources2.Paths, _grf);
+
+					_requiresMetaGrfReload = false;
+
 					if (fileName.IsExtension(".rsm")) {
 						if (cancelMethod != null && cancelMethod()) return;
 						_addNode(cancelMethod, mapFile + ".rsm", _grfPath, null);
@@ -267,7 +289,7 @@ namespace GRFEditor.Tools.MapExtractor {
 						if (cancelMethod != null && cancelMethod()) return;
 						_treeViewMapExtractor.Dispatcher.Invoke(new Action(delegate {
 							foreach (MapExtractorTreeViewItem node in _treeViewMapExtractor.Items) {
-								if (node.IsChecked == true) {
+								if (node.CheckBoxHeader.IsChecked == true) {
 									node.IsExpanded = true;
 								}
 							}
@@ -279,7 +301,7 @@ namespace GRFEditor.Tools.MapExtractor {
 					if (cancelMethod != null && cancelMethod()) return;
 					_treeViewMapExtractor.Dispatcher.Invoke(new Action(delegate {
 						foreach (MapExtractorTreeViewItem node in _treeViewMapExtractor.Items) {
-							if (node.IsChecked == true) {
+							if (node.CheckBoxHeader.IsChecked == true) {
 								node.IsExpanded = true;
 							}
 						}
@@ -287,6 +309,7 @@ namespace GRFEditor.Tools.MapExtractor {
 				}
 			}
 			catch (Exception err) {
+				_requiresMetaGrfReload = true;
 				ErrorHandler.HandleException(err);
 			}
 			finally {
@@ -299,26 +322,27 @@ namespace GRFEditor.Tools.MapExtractor {
 				if (cancelMethod != null && cancelMethod()) return;
 
 				MapExtractorTreeViewItem mainNode = (MapExtractorTreeViewItem)_treeViewMapExtractor.Dispatcher.Invoke(new Func<MapExtractorTreeViewItem>(() => new MapExtractorTreeViewItem(_treeViewMapExtractor)));
+
+				mainNode.Dispatch(p => p.CheckBoxHeader.Checked += new RoutedEventHandler(_checkBox_Checked));
+				mainNode.Dispatch(p => p.CheckBoxHeader.Unchecked += new RoutedEventHandler(_checkBox_Unchecked));
+				mainNode.Dispatch(p => p.HeaderText = subRelativeFile);
+
 				string relativePath = Path.Combine(relativeResourceLocation, subRelativeFile);
-				List<string> resources = new List<string>();
 
-				mainNode.Dispatch(delegate {
-					mainNode.Checked += new RoutedEventHandler(_checkBox_Checked);
-					mainNode.Unchecked += new RoutedEventHandler(_checkBox_Unchecked);
-					mainNode.HeaderText = subRelativeFile;
+				if (_metaGrf.GetData(relativePath) == null) {
+					mainNode.Dispatch(p => p.ResourcePath = null);
+				}
+				else {
+					mainNode.Dispatch(p => p.ResourcePath = _metaGrf.FindTkPath(relativePath));
+				}
 
-					var path = GrfEditorConfiguration.Resources.MultiGrf.FindTkPath(relativePath);
-
-					mainNode.ResourcePath = path;
-
-					if (parent != null)
-						parent.Items.Add(mainNode);
-					else
-						_treeViewMapExtractor.Items.Add(mainNode);
-				});
+				if (parent != null)
+					parent.Dispatch(p => p.Items.Add(mainNode));
+				else
+					_treeViewMapExtractor.Dispatch(p => p.Items.Add(mainNode));
 
 				if (mainNode.ResourcePath != null) {
-					mainNode.Dispatch(p => p.IsChecked = isChecked);
+					mainNode.Dispatch(p => p.CheckBoxHeader.IsChecked = isChecked);
 					string extension = subRelativeFile.GetExtension();
 
 					if (cancelMethod != null && cancelMethod()) return;
@@ -326,68 +350,43 @@ namespace GRFEditor.Tools.MapExtractor {
 					switch (extension) {
 						case ".rsm":
 						case ".rsm2":
-							var byteData = GrfEditorConfiguration.Resources.MultiGrf.GetData(relativePath);
+							Rsm rsm = new Rsm(_metaGrf.GetData(relativePath));
+							HashSet<string> textures = new HashSet<string>();
 
-							var binaryReader = ((MultiType)byteData).GetBinaryReader();
-							RsmHeader rsmHeader = new RsmHeader(binaryReader);
-
-							if (rsmHeader.Version < 2.0) {
-								binaryReader.Int32();
-								binaryReader.Int32();
-
-								if (rsmHeader.Version >= 1.4) {
-									binaryReader.Byte();
-								}
-
-								binaryReader.Bytes(16);
-								var count = binaryReader.Int32();
-
-								for (int i = 0; i < count; i++) {
-									resources.Add(binaryReader.String(40, '\0'));
+							foreach (var mesh in rsm.Meshes) {
+								foreach (var texture in mesh.Textures) {
+									textures.Add(texture);
 								}
 							}
-							else {
-								binaryReader.Position = 0;
-								Rsm rsm2 = new Rsm(binaryReader);
 
-								resources.AddRange(rsm2.Textures);
-
-								foreach (var mesh in rsm2.Meshes) {
-									resources.AddRange(mesh.Textures);
-								}
-
-								resources = resources.Distinct().ToList();
+							foreach (var texture in rsm.Textures) {
+								textures.Add(texture);
 							}
 
-							foreach (string texture in resources) {
+							foreach (string texture in textures) {
 								_addNode(cancelMethod, texture, @"data\texture\", mainNode, isChecked);
 							}
 							break;
 						case ".gnd":
-							var dataEntry = ((MultiType)GrfEditorConfiguration.Resources.MultiGrf.GetData(relativePath)).GetBinaryReader();
-							GndHeader gndHeader = new GndHeader(dataEntry);
-							
-							for (int i = 0; i < gndHeader.TextureCount; i++) {
-								resources.Add(dataEntry.String(gndHeader.TexturePathSize, '\0'));
-							}
+							Gnd gnd = new Gnd(_metaGrf.GetData(relativePath));
 
-							foreach (string texture in resources.Distinct()) {
+							foreach (string texture in gnd.TexturesPath.Distinct()) {
 								_addNode(cancelMethod, texture, @"data\texture\", mainNode, isChecked);
 							}
 							break;
 						case ".rsw":
-							Rsw rsw = new Rsw(GrfEditorConfiguration.Resources.MultiGrf.GetData(relativePath));
+							Rsw rsw = new Rsw(_metaGrf.GetData(relativePath));
 
 							foreach (string model in rsw.ModelResources.Distinct()) {
 								_addNode(cancelMethod, model, @"data\model\", mainNode, isChecked);
 							}
 							break;
 						case ".str":
-							Str str = new Str(GrfEditorConfiguration.Resources.MultiGrf.GetData(relativePath));
+							Str str = new Str(_metaGrf.GetData(relativePath));
 
-							resources = str.Textures;
+							List<string> resources = str.Layers.SelectMany(layer => layer.TextureNames).ToList();
 
-							foreach (string resource in resources) {
+							foreach (string resource in resources.Distinct()) {
 								_addNode(cancelMethod, resource, relativeResourceLocation, mainNode, isChecked);
 							}
 							break;
@@ -412,7 +411,7 @@ namespace GRFEditor.Tools.MapExtractor {
 					}
 				}
 				else {
-					if (node.IsChecked == true) {
+					if (node.CheckBoxHeader.IsChecked == true) {
 						paths.Add(new Utilities.Extension.Tuple<TkPath, string>(node.ResourcePath, node.ResourcePath.RelativePath));
 					}
 
@@ -444,16 +443,24 @@ namespace GRFEditor.Tools.MapExtractor {
 			}
 		}
 
+		protected virtual void Dispose(bool disposing) {
+			if (disposing) {
+				if (_metaGrf != null) {
+					_metaGrf.Dispose();
+				}
+			}
+		}
+
 		#region Events
 
 		private void _checkBox_Checked(object sender, RoutedEventArgs e) {
 			try {
-				MapExtractorTreeViewItem item = sender as MapExtractorTreeViewItem;
+				MapExtractorTreeViewItem item = WpfUtilities.FindParentControl<MapExtractorTreeViewItem>(sender as DependencyObject);
 
 				if (item != null) {
 					foreach (MapExtractorTreeViewItem tvi in item.Items) {
-						if (tvi.IsEnabled)
-							tvi.IsChecked = true;
+						if (tvi.CheckBoxHeader.IsEnabled)
+							tvi.CheckBoxHeader.IsChecked = true;
 					}
 
 					_checkParents(item, true);
@@ -466,12 +473,12 @@ namespace GRFEditor.Tools.MapExtractor {
 
 		private void _checkBox_Unchecked(object sender, RoutedEventArgs e) {
 			try {
-				MapExtractorTreeViewItem item = sender as MapExtractorTreeViewItem;
+				MapExtractorTreeViewItem item = WpfUtilities.FindParentControl<MapExtractorTreeViewItem>(sender as DependencyObject);
 
 				if (item != null) {
 					foreach (MapExtractorTreeViewItem tvi in item.Items) {
-						if (tvi.IsEnabled)
-							tvi.IsChecked = false;
+						if (tvi.CheckBoxHeader.IsEnabled)
+							tvi.CheckBoxHeader.IsChecked = false;
 					}
 
 					_checkParents(item, false);
@@ -487,16 +494,16 @@ namespace GRFEditor.Tools.MapExtractor {
 				MapExtractorTreeViewItem tvi = (MapExtractorTreeViewItem) _treeViewMapExtractor.SelectedItem;
 
 				if (tvi.ResourcePath != null) {
-					tvi.Checked -= _checkBox_Checked;
-					tvi.IsChecked = true;
-					tvi.Checked += _checkBox_Checked;
+					tvi.CheckBoxHeader.Checked -= _checkBox_Checked;
+					tvi.CheckBoxHeader.IsChecked = true;
+					tvi.CheckBoxHeader.Checked += _checkBox_Checked;
 				}
 
 				foreach (MapExtractorTreeViewItem child in tvi.Items) {
 					if (child.ResourcePath == null)
 						continue;
 
-					child.Checked -= _checkBox_Checked;
+					child.CheckBoxHeader.Checked -= _checkBox_Checked;
 
 					bool allChecked = true;
 
@@ -504,26 +511,26 @@ namespace GRFEditor.Tools.MapExtractor {
 						if (subChild.ResourcePath == null)
 							continue;
 
-						if (subChild.IsChecked != true) {
+						if (subChild.CheckBoxHeader.IsChecked != true) {
 							allChecked = false;
 						}
 					}
 
 					if (!allChecked) {
-						child.IsChecked = null;
+						child.CheckBoxHeader.IsChecked = null;
 
-						tvi.Checked -= _checkBox_Checked;
-						tvi.IsChecked = null;
-						tvi.Checked += _checkBox_Checked;
+						tvi.CheckBoxHeader.Checked -= _checkBox_Checked;
+						tvi.CheckBoxHeader.IsChecked = null;
+						tvi.CheckBoxHeader.Checked += _checkBox_Checked;
 					}
 					else {
-						child.IsChecked = true;
+						child.CheckBoxHeader.IsChecked = true;
 					}
 
-					child.Checked += _checkBox_Checked;
+					child.CheckBoxHeader.Checked += _checkBox_Checked;
 				}
 
-				if (tvi.IsChecked == true) {
+				if (tvi.CheckBoxHeader.IsChecked == true) {
 					_checkParents(tvi, true);
 				}
 			}

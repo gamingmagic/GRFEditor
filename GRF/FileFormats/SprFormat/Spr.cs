@@ -328,12 +328,12 @@ namespace GRF.FileFormats.SprFormat {
 			return index;
 		}
 
-		public void SetToNullIndexes(Act act, GrfImageType type, int relativeIndex, int value = -1) {
+		public void SetToNullIndexes(Act act, GrfImageType type, int relativeIndex) {
 			if (type == GrfImageType.Indexed8) {
 				act.AllLayers(layer => {
 					if (layer.IsIndexed8()) {
 						if (layer.SpriteIndex == relativeIndex) {
-							layer.SpriteIndex = value;
+							layer.SpriteIndex = -1;
 						}
 					}
 				});
@@ -342,7 +342,7 @@ namespace GRF.FileFormats.SprFormat {
 				act.AllLayers(layer => {
 					if (layer.IsBgra32()) {
 						if (layer.SpriteIndex == relativeIndex) {
-							layer.SpriteIndex = value;
+							layer.SpriteIndex = -1;
 						}
 					}
 				});
@@ -498,12 +498,12 @@ namespace GRF.FileFormats.SprFormat {
 					img2.Convert(GrfImageType.Bgra32);
 				}
 
-				SetToNullIndexes(act, GrfImageType.Indexed8, absoluteIndex, -2);
+				SetToNullIndexes(act, GrfImageType.Indexed8, absoluteIndex);
 				ShiftIndexesAbove(act, GrfImageType.Indexed8, -1, absoluteIndex);
 
 				Remove(absoluteIndex);
 				
-				foreach (var layer in act.GetAllLayers().Where(p => p.SpriteIndex == -2)) {
+				foreach (var layer in act.GetAllLayers().Where(p => p.SpriteIndex == -1)) {
 					layer.SpriteIndex = NumberOfBgra32Images;
 					layer.SpriteType = SpriteTypes.Bgra32;
 				}
@@ -517,12 +517,12 @@ namespace GRF.FileFormats.SprFormat {
 					img2.Convert(GrfImageType.Bgra32);
 				}
 
-				SetToNullIndexes(act, GrfImageType.Bgra32, absoluteIndex - NumberOfIndexed8Images, -2);
+				SetToNullIndexes(act, GrfImageType.Bgra32, absoluteIndex - NumberOfIndexed8Images);
 				ShiftIndexesAbove(act, GrfImageType.Bgra32, -1, absoluteIndex - NumberOfIndexed8Images);
 				
 				Remove(absoluteIndex);
 
-				foreach (var layer in act.GetAllLayers().Where(p => p.SpriteIndex == -2)) {
+				foreach (var layer in act.GetAllLayers().Where(p => p.SpriteIndex == -1)) {
 					layer.SpriteIndex = NumberOfIndexed8Images;
 					layer.SpriteType = SpriteTypes.Indexed8;
 				}

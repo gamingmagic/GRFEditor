@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using GRF.Graphics;
 using GRF.IO;
 using GRF.Image;
 using Utilities.Extension;
@@ -13,15 +12,12 @@ namespace GRF.FileFormats.RswFormat.RswObjects {
 		public Light(IBinaryReader reader) : base(RswObjectType.Light) {
 			Name = reader.String(80, '\0');
 			Position = reader.Vertex();
-			ColorVertex = new Vertex(reader.Float(), reader.Float(), reader.Float());
 			Color = GrfColor.FromArgb(255,
-				(byte)(ColorVertex.X * 255f),
-				(byte)(ColorVertex.Y * 255f),
-				(byte)(ColorVertex.Z * 255f));
+			                          (byte) reader.Int32(),
+			                          (byte) reader.Int32(),
+			                          (byte) reader.Int32());
 			Range = reader.Float();
 		}
-
-		public Vertex ColorVertex { get; set; }
 
 		public string Name { get; private set; }
 		public GrfColor Color { get; private set; }
@@ -40,9 +36,9 @@ namespace GRF.FileFormats.RswFormat.RswObjects {
 			base.Write(writer);
 			writer.WriteANSI(Name, 80);
 			Position.Write(writer);
-			writer.Write(ColorVertex.X);
-			writer.Write(ColorVertex.Y);
-			writer.Write(ColorVertex.Z);
+			writer.Write((int) Color.R);
+			writer.Write((int) Color.G);
+			writer.Write((int) Color.B);
 			writer.Write(Range);
 		}
 

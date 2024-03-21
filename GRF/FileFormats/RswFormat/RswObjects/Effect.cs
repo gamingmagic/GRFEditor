@@ -54,8 +54,6 @@ namespace GRF.FileFormats.RswFormat.RswObjects {
 
 		public float[] Param { get; private set; }
 
-		public object LubEffectAttached { get; set; }
-
 		/// <summary>
 		/// Writes the specified object to the stream.
 		/// </summary>

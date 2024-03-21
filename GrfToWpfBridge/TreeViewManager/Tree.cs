@@ -151,12 +151,14 @@ namespace GrfToWpfBridge.TreeViewManager {
 			return GetNode(tkPath) != null;
 		}
 
-		public void AddNode(DeletedPath deletedPath) {
-			var node = deletedPath.Node;
+		public void AddNode(TreeNode node) {
 			TreeNode parentNode = GetNode(new TkPath { FilePath = node.TkPath.FilePath, RelativePath = Path.GetDirectoryName(node.TkPath.RelativePath) });
 			parentNode.Children.Add(node.Header, node);
 			node.Parent = parentNode;
-			node.UndoDelete(deletedPath.Index);
+			List<TreeNode> nodes = new List<TreeNode>();
+			nodes.Add(node);
+			node.GetAllNodes(nodes);
+			nodes.ForEach(p => p.Set());
 		}
 
 		public void AddTvisToTree() {

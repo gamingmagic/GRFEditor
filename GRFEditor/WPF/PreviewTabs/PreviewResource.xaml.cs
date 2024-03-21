@@ -8,7 +8,6 @@ using GRF.Core;
 using TokeiLibrary;
 using Utilities.Extension;
 using Utilities.Services;
-using Color = System.Drawing.Color;
 
 namespace GRFEditor.WPF.PreviewTabs {
 	/// <summary>
@@ -22,7 +21,7 @@ namespace GRFEditor.WPF.PreviewTabs {
 
 			try {
 				var color = ((SolidColorBrush)Application.Current.Resources["TabItemBackground"]).Color;
-				_hexEditor.BackColor = Color.FromArgb(color.A, color.R, color.G, color.B);
+				_hexEditor.BackColor = System.Drawing.Color.FromArgb(color.A, color.R, color.G, color.B);
 			}
 			catch {
 			}

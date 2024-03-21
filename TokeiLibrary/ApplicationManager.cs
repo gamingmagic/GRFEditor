@@ -762,12 +762,5 @@ namespace TokeiLibrary {
 		#endregion // enum HChangeNotifyEventID
 
 		#endregion
-
-		public static event Action ThemeChanged;
-
-		public static void OnThemeChanged() {
-			Action handler = ThemeChanged;
-			if (handler != null) handler();
-		}
 	}
 }

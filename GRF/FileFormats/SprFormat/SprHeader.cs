@@ -14,7 +14,7 @@ namespace GRF.FileFormats.SprFormat {
 			Magic = reader.StringANSI(2);
 
 			if (Magic != "SP")
-				throw GrfExceptions.__FileFormatException.Create("SPR");
+				GrfExceptions.__FileFormatException.Create("SPR");
 
 			MinorVersion = reader.Byte();
 			MajorVersion = reader.Byte();

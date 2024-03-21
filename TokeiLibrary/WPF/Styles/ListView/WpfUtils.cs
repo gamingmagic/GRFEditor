@@ -576,10 +576,6 @@ namespace TokeiLibrary.WPF.Styles.ListView {
 				if (tb != null)
 					tb.SetValue(TextBlock.TextDecorationsProperty, null);
 			};
-
-			ApplicationManager.ThemeChanged += delegate {
-				box.Foreground = Application.Current.Resources["TextForeground"] as SolidColorBrush;
-			};
 		}
 
 		public static void AddMouseInOutEffectsBox(RadioButton box) {

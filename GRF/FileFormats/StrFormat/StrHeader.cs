@@ -17,7 +17,7 @@ namespace GRF.FileFormats.StrFormat {
 			Magic = reader.String(4);
 
 			if (Magic != "STRM")
-				throw GrfExceptions.__FileFormatException.Create("STR");
+				GrfExceptions.__FileFormatException.Create("STR");
 
 			MajorVersion = reader.Byte();
 			MinorVersion = reader.Byte();

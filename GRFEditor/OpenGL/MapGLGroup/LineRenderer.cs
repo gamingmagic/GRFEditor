@@ -3,23 +3,14 @@ using GRFEditor.OpenGL.WPF;
 using OpenTK;
 using OpenTK.Graphics.OpenGL;
 
-namespace GRFEditor.OpenGL.MapRenderers {
-	public enum LinePointMode {
-		Line,
-		Point,
-	}
-
-	public class LineRenderer : Renderer {
+namespace GRFEditor.OpenGL.MapGLGroup {
+	public class LineRenderer : MapGLObject {
 		public Vector4 Color = new Vector4(0, 0, 0, 0.7f);
-		private readonly float _width;
-		private readonly LinePointMode _mode;
 		private readonly Vector3[] _lines;
 		private readonly RenderInfo _ri = new RenderInfo();
 
-		public LineRenderer(Shader shader, float width, LinePointMode mode, params Vector3[] lines) {
+		public LineRenderer(Shader shader, params Vector3[] lines) {
 			Shader = shader;
-			_width = width;
-			_mode = mode;
 			_lines = lines;
 		}
 
@@ -53,23 +44,14 @@ namespace GRFEditor.OpenGL.MapRenderers {
 			}
 
 			Shader.Use();
-			Shader.SetVector4("color", Color);
+			Shader.SetVector4("colorMult", Color);
 
 			Shader.SetMatrix4("model", Matrix4.Identity);
 			Shader.SetMatrix4("view", viewport.View);
 			Shader.SetMatrix4("projection", viewport.Projection);
 
-			if (_mode == LinePointMode.Point) {
-				GL.PointSize(_width);
-				GL.BindVertexArray(_ri.Vao);
-				GL.DrawArrays(PrimitiveType.Points, 0, _lines.Length);
-			}
-			else {	
-				GL.LineWidth(_width);
-				GL.BindVertexArray(_ri.Vao);
-				GL.DrawArrays(PrimitiveType.Lines, 0, _lines.Length);
-				GL.LineWidth(1.0f);
-			}
+			GL.BindVertexArray(_ri.Vao);
+			GL.DrawArrays(PrimitiveType.Lines, 0, _lines.Length);
 		}
 
 		public override void Unload() {

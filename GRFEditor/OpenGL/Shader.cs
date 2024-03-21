@@ -11,7 +11,6 @@ namespace GRFEditor.OpenGL {
 		public readonly int Handle;
 
 		private readonly Dictionary<string, int> _uniformLocations;
-		private readonly Dictionary<string, object> _values = new Dictionary<string, object>();
 
 		// This is how you create a simple shader.
 		// Shaders are written in GLSL, which is a language very similar to C in its semantics.
@@ -147,14 +146,7 @@ namespace GRFEditor.OpenGL {
 				//Console.WriteLine("Warning: property '" + name + "' not found in the shader.");
 				return;
 			}
-
-			//object outData;
-			//
-			//if (_values.TryGetValue(name, out outData) && (bool)outData == data) {
-			//	return;
-			//}
-			//
-			//_values[name] = data;
+			GL.UseProgram(Handle);
 			GL.Uniform1(_uniformLocations[name], data ? 1 : 0);
 		}
 
@@ -168,14 +160,7 @@ namespace GRFEditor.OpenGL {
 				//Console.WriteLine("Warning: property '" + name + "' not found in the shader.");
 				return;
 			}
-
-			//object outData;
-			//
-			//if (_values.TryGetValue(name, out outData) && (int)outData == data) {
-			//	return;
-			//}
-			//
-			//_values[name] = data;
+			GL.UseProgram(Handle);
 			GL.Uniform1(_uniformLocations[name], data);
 		}
 
@@ -189,15 +174,7 @@ namespace GRFEditor.OpenGL {
 				//Console.WriteLine("Warning: property '" + name + "' not found in the shader.");
 				return;
 			}
-			
-			//object outData;
-			//
-			//// ReSharper disable once CompareOfFloatsByEqualityOperator
-			//if (_values.TryGetValue(name, out outData) && (float)outData == data) {
-			//	return;
-			//}
-			//
-			//_values[name] = data;
+			GL.UseProgram(Handle);
 			GL.Uniform1(_uniformLocations[name], data);
 		}
 
@@ -216,7 +193,7 @@ namespace GRFEditor.OpenGL {
 				//Console.WriteLine("Warning: property '" + name + "' not found in the shader.");
 				return;
 			}
-
+			GL.UseProgram(Handle);
 			GL.UniformMatrix4(_uniformLocations[name], true, ref data);
 		}
 
@@ -235,7 +212,7 @@ namespace GRFEditor.OpenGL {
 				//Console.WriteLine("Warning: property '" + name + "' not found in the shader.");
 				return;
 			}
-			
+			GL.UseProgram(Handle);
 			GL.UniformMatrix3(_uniformLocations[name], true, ref data);
 		}
 
@@ -249,14 +226,7 @@ namespace GRFEditor.OpenGL {
 				//Console.WriteLine("Warning: property '" + name + "' not found in the shader.");
 				return;
 			}
-
-			//object outData;
-			//
-			//if (_values.TryGetValue(name, out outData) && (Vector3)outData == data) {
-			//	return;
-			//}
-			//
-			//_values[name] = data;
+			GL.UseProgram(Handle);
 			GL.Uniform3(_uniformLocations[name], data);
 		}
 
@@ -270,14 +240,7 @@ namespace GRFEditor.OpenGL {
 				//Console.WriteLine("Warning: property '" + name + "' not found in the shader.");
 				return;
 			}
-
-			//object outData;
-			//
-			//if (_values.TryGetValue(name, out outData) && (Vector2)outData == data) {
-			//	return;
-			//}
-			//
-			//_values[name] = data;
+			GL.UseProgram(Handle);
 			GL.Uniform2(_uniformLocations[name], data);
 		}
 
@@ -286,7 +249,7 @@ namespace GRFEditor.OpenGL {
 				//Console.WriteLine("Warning: property '" + name + "' not found in the shader.");
 				return;
 			}
-
+			GL.UseProgram(Handle);
 			GL.Uniform4(_uniformLocations[name], data);
 		}
 	}

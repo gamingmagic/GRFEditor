@@ -6,12 +6,8 @@ using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using TokeiLibrary;
 
-namespace GRFEditor.OpenGL.MapRenderers {
-	/// <summary>
-	/// Background grid for the map renderer.
-	/// </summary>
-	/// <seealso cref="GRFEditor.OpenGL.MapRenderers.Renderer"/>
-	public class BackgroundRenderer : Renderer {
+namespace GRFEditor.OpenGL.MapGLGroup {
+	public class BackgroundRenderer : MapGLObject {
 		private Texture _backTex;
 		private Matrix4 _model = Matrix4.Identity;
 		private readonly RenderInfo _ri = new RenderInfo();
@@ -21,9 +17,6 @@ namespace GRFEditor.OpenGL.MapRenderers {
 			-0.5f, -0.5f, 0.0f, 0.0f, 0.0f,
 			-0.5f,  0.5f, 0.0f, 0.0f, 1.0f 
 		};
-
-		private int _previousWidth = 0;
-		private int _previousHeight = 0;
 
 		public override void Load(OpenGLViewport viewport) {
 			IsLoaded = true;
@@ -38,15 +31,15 @@ namespace GRFEditor.OpenGL.MapRenderers {
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
 
-			Shader = new Shader("shader_color.vert", "shader_color.frag");
+			Shader = new Shader("shader_map_color.vert", "shader_map_color.frag");
 
 			_ri.CreateVao();
 
 			Resize(viewport);
 
 			GL.EnableVertexAttribArray(0);
+			GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), 0);
 			GL.EnableVertexAttribArray(1);
-			GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), 0 * sizeof(float));
 			GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), 3 * sizeof(float));
 		}
 
@@ -57,24 +50,26 @@ namespace GRFEditor.OpenGL.MapRenderers {
 
 			_model[0, 0] = 2f;
 			_model[1, 1] = 2f;
-			_model[3, 0] = 0;
-			_model[3, 1] = 0;
+			_model[3, 0] = -(float)((0.5f * viewport._primary.Width - viewport._primary.Width / 2d));
+			_model[3, 1] = -(float)((-0.5f * viewport._primary.Height + viewport._primary.Height / 2d));
 
 			const float tileSizeX = 16f;
 			const float tileSizeY = 16f;
+
+			var x = -(viewport._primary.Width * 0.5f) / tileSizeX;
+			var y = -(viewport._primary.Height * (1 - 0.5f)) / tileSizeY;
 
 			Vector2 bottomLeft = new Vector2(0, 0);
 			Vector2 bottomRight = new Vector2(viewport._primary.Width / tileSizeX, 0);
 			Vector2 topRight = new Vector2(viewport._primary.Width / tileSizeX, viewport._primary.Height / tileSizeY);
 			Vector2 topLeft = new Vector2(0, viewport._primary.Height / tileSizeY);
-			Vector2 translate = new Vector2(0, 1 - (viewport._primary.Height % tileSizeY) / tileSizeY);
-			translate += new Vector2(0.5f, 0);
+			Vector2 translate = new Vector2(x, y);
 
 			bottomLeft += translate;
 			bottomRight += translate;
 			topRight += translate;
 			topLeft += translate;
-			
+
 			_vertices = new float[] {
 				 0.5f,  0.5f, 0.0f, topRight.X, topRight.Y,
 				 0.5f, -0.5f, 0.0f, bottomRight.X, bottomRight.Y,
@@ -89,8 +84,6 @@ namespace GRFEditor.OpenGL.MapRenderers {
 			}
 
 			_ri.Vbo.SetData(_vertices, BufferUsageHint.StaticDraw, 5);
-			_previousWidth = viewport._primary.Width;
-			_previousHeight = viewport._primary.Height;
 		}
 
 		public override void Render(OpenGLViewport viewport) {
@@ -100,14 +93,6 @@ namespace GRFEditor.OpenGL.MapRenderers {
 			if (!IsLoaded) {
 				Load(viewport);
 			}
-
-			if (viewport.RenderOptions.MinimapMode) {
-				GL.ClearColor(255, 0, 255, 255);
-				return;
-			}
-
-			if (_previousWidth != viewport._primary.Width || _previousHeight != viewport._primary.Height)
-				Resize(viewport);
 
 			GL.MatrixMode(MatrixMode.Projection);
 			GL.PushMatrix();
@@ -121,11 +106,11 @@ namespace GRFEditor.OpenGL.MapRenderers {
 			Shader.Use();
 			GL.Disable(EnableCap.Blend);
 
-			if (viewport.RenderOptions.RenderSkymapFeature && viewport.RenderOptions.RenderSkymapDetected && viewport.RenderOptions.RenderingMap) {
-				Shader.SetVector4("color", viewport.RenderOptions.SkymapBackgroundColor);
+			if (MapRenderer.RenderOptions.RenderSkymapFeature && MapRenderer.RenderOptions.RenderSkymapDetected && MapRenderer.RenderOptions.RenderingMap) {
+				Shader.SetVector4("colorMult3", MapRenderer.RenderOptions.SkymapBackgroundColor);
 			}
 			else {
-				Shader.SetVector4("color", GrfEditorConfiguration.MapBackgroundColorQuick.Color);
+				Shader.SetVector4("colorMult3", GrfEditorConfiguration.MapBackgroundColorQuick.Color);
 			}
 
 			GL.Enable(EnableCap.Texture2D);
@@ -142,9 +127,6 @@ namespace GRFEditor.OpenGL.MapRenderers {
 			GL.MatrixMode(MatrixMode.Projection);
 			GL.PopMatrix();
 			GL.MatrixMode(MatrixMode.Modelview);
-
-			GL.Enable(EnableCap.DepthTest);
-			GL.Enable(EnableCap.Blend);
 		}
 
 		public override void Unload() {

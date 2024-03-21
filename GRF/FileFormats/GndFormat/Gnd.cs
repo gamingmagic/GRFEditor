@@ -87,17 +87,17 @@ namespace GRF.FileFormats.GndFormat {
 		/// <summary>
 		/// Gets the lightmap detail width per tile.
 		/// </summary>
-		public int GridSizeX { get; set; }
+		public int GridSizeX { get; internal set; }
 
 		/// <summary>
 		/// Gets the lightmap detail height per tile.
 		/// </summary>
-		public int GridSizeY { get; set; }
+		public int GridSizeY { get; internal set; }
 
 		/// <summary>
 		/// Gets the number of lightmap cells per tile.
 		/// </summary>
-		public int GridSizeCell { get; set; }
+		public int GridSizeCell { get; private set; }
 
 		/// <summary>
 		/// Gets or sets the number of lightmaps.
@@ -251,17 +251,20 @@ namespace GRF.FileFormats.GndFormat {
 
 		private void _loadWater(IBinaryReader data) {
 			if (Header.IsCompatibleWith(1, 8)) {
-				RswWater defWWater = new RswWater();
+				RswWater water = new RswWater();
 
-				defWWater.Level = data.Float();
-				defWWater.Type = data.Int32();
-				defWWater.WaveHeight = data.Float();
-				defWWater.WaveSpeed = data.Float();
-				defWWater.WavePitch = data.Float();
-				defWWater.TextureCycling = data.Int32();
+				water.Level = data.Float();
+				water.Type = data.Int32();
+				water.WaveHeight = data.Float();
+				water.WaveSpeed = data.Float();
+				water.WavePitch = data.Float();
+				water.TextureCycling = data.Int32();
 
 				Water.WaterSplitWidth = data.Int32();
 				Water.WaterSplitHeight = data.Int32();
+				Water.Zones.Add(water);
+
+				// Hmm, what about 1.9??
 
 				if (Header.IsCompatibleWith(1, 9)) {
 					Water.Zones.Clear();
@@ -281,14 +284,7 @@ namespace GRF.FileFormats.GndFormat {
 					}
 				}
 				else {
-					Water.Zones.Clear();
-
-					int count = Water.WaterSplitWidth * Water.WaterSplitHeight;
-					for (int i = 0; i < count; i++) {
-						RswWater waterSub = new RswWater(defWWater);
-						waterSub.Level = data.Float();
-						Water.Zones.Add(waterSub);
-					}
+					water.Level = data.Float();
 				}
 			}
 		}
@@ -374,9 +370,8 @@ namespace GRF.FileFormats.GndFormat {
 					}
 				}
 				else {
-					foreach (var water in Water.Zones) {
-						stream.Write(water.Level);
-					}
+					// ??
+					stream.Write(defWater.Level);
 				}
 			}
 		}
