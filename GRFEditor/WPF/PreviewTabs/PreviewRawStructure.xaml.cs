@@ -274,8 +274,6 @@ namespace GRFEditor.WPF.PreviewTabs {
 						text = "-- An unhandled exception has been caught : " + grfErr.Message;
 						_showTextEditor(text);
 					}
-					else if (grfErr == GrfExceptions.__ContainerBusy) {
-					}
 					else {
 						throw;
 					}

@@ -70,12 +70,12 @@ namespace GRF.FileFormats.ActFormat {
 			: this(actData, new Spr(sprData), true) {
 		}
 
-		internal Act(byte[] data, Spr spr, bool partialReadAllowed) {
+		internal Act(byte[] entireData, Spr spr, bool partialReadAllowed) {
 			Commands = new CommandsHolder(this);
 			Sprite = spr;
 
 			try {
-				ByteReader reader = new ByteReader(data);
+				ByteReader reader = new ByteReader(entireData);
 				Header = new ActHeader(reader);
 				ActConverter.LoadActions(this, reader);
 			}
@@ -90,10 +90,6 @@ namespace GRF.FileFormats.ActFormat {
 		public CommandsHolder Commands { get; private set; }
 
 		public ActHeader Header { get; set; }
-
-		public double Version {
-			get { return Header.Version; }
-		}
 
 		public List<Action> Actions {
 			get { return _actions; }

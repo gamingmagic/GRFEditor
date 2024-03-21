@@ -46,6 +46,7 @@ namespace GRFEditor.Core.Services {
 		public bool ShowMapExtractor { get; set; }
 		public bool ShowRsm { get; set; }
 		public bool ShowStr { get; set; }
+		public bool ShowGnd { get; set; }
 		//public bool ShowGatEditor { get; set; }
 		public bool ShowGat { get; set; }
 		public bool ShowDb { get; set; }
