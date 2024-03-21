@@ -109,13 +109,14 @@ namespace GRFEditor.WPF.PreviewTabs {
 							RsmHeader rsmHeader = new RsmHeader(binaryReader);
 
 							if (rsmHeader.Version < 2.0) {
-								binaryReader.Forward(8);
+								binaryReader.Int32();
+								binaryReader.Int32();
 
 								if (rsmHeader.Version >= 1.4) {
-									binaryReader.Forward(1);
+									binaryReader.Byte();
 								}
 
-								binaryReader.Forward(16);
+								binaryReader.Bytes(16);
 								var count = binaryReader.Int32();
 
 								for (int i = 0; i < count; i++) {

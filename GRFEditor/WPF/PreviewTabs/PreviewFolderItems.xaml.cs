@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using ErrorManager;
 using GRF.Core;
 using GRF.Image;
+using GRFEditor.ApplicationConfiguration;
 using GRFEditor.Core.Services;
 using GrfToWpfBridge;
 using TokeiLibrary;
