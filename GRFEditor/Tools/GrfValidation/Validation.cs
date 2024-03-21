@@ -29,7 +29,6 @@ using Utilities.Extension;
 using Utilities.Hash;
 
 //using Parallel = GRF.Threading.Parallel;
-using Utilities.Services;
 
 namespace GRFEditor.Tools.GrfValidation {
 	public class Validation : IProgress {
@@ -65,7 +64,7 @@ namespace GRFEditor.Tools.GrfValidation {
 
 					if (size > 0) {
 						string spaceSavedString = Methods.FileSizeToString(size);
-						errors.Add(new Utilities.Extension.Tuple<ValidationTypes, string, string>(ValidationTypes.FeSpaceSaved, "", "You can save " + spaceSavedString + " by saving this GRF."));
+						errors.Add(new Utilities.Extension.Tuple<ValidationTypes, string, string>(ValidationTypes.FeSpaceSaved, "", spaceSavedString));
 					}
 				}
 
@@ -90,9 +89,8 @@ namespace GRFEditor.Tools.GrfValidation {
 				}
 
 				if (GrfEditorConfiguration.FeMissingSprAct) {
-					string garmentFolder = EncodingService.FromAnyToDisplayEncoding(@"data\sprite\·Îºê\");
-					List<FileEntry> actFiles = entries.Where(p => !p.Key.Contains(garmentFolder) && p.Key.IsExtension(".act")).Select(p => p.Value).ToList();
-					List<FileEntry> sprFiles = entries.Where(p => !p.Key.Contains(garmentFolder) && p.Key.IsExtension(".spr")).Select(p => p.Value).ToList();
+					List<FileEntry> actFiles = entries.Where(p => Path.GetExtension(p.Key) != null && Path.GetExtension(p.Key).ToLower().Contains(".act")).Select(p => p.Value).ToList();
+					List<FileEntry> sprFiles = entries.Where(p => Path.GetExtension(p.Key) != null && Path.GetExtension(p.Key).ToLower().Contains(".spr")).Select(p => p.Value).ToList();
 					List<string> sprFileNamesCut = sprFiles.Select(p => p.RelativePath.Replace(Path.GetExtension(p.RelativePath), "")).ToList();
 					List<string> actFileNamesCut = actFiles.Select(p => p.RelativePath.Replace(Path.GetExtension(p.RelativePath), "")).ToList();
 
