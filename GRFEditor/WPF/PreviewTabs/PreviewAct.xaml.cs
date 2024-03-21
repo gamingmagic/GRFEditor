@@ -9,21 +9,18 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using ActImaging;
 using ErrorManager;
 using GRF.ContainerFormat;
 using GRF.Core;
 using GRF.FileFormats.ActFormat;
 using GRF.Image;
-using GRF.IO;
 using GRFEditor.ApplicationConfiguration;
-using GrfToWpfBridge;
 using GrfToWpfBridge.Application;
 using TokeiLibrary;
 using TokeiLibrary.WPF.Styles;
 using Utilities.Extension;
-using Utilities.Services;
 using Action = System.Action;
-using Imaging = ActImaging.Imaging;
 
 namespace GRFEditor.WPF.PreviewTabs {
 	public class ScalingMode {
@@ -62,9 +59,29 @@ namespace GRFEditor.WPF.PreviewTabs {
 			_imagePreview.Dispatch(p => p.SetValue(RenderOptions.BitmapScalingModeProperty, Configuration.BestAvailableScaleMode));
 			_imagePreview.Dispatch(p => p.SetValue(RenderOptions.EdgeModeProperty, EdgeMode.Aliased));
 
-			Binder.Bind(_buttonScale, () => GrfEditorConfiguration.PreviewActScaleType, v => GrfEditorConfiguration.PreviewActScaleType = v, delegate {
-				_buttonScale.IsPressed = GrfEditorConfiguration.PreviewActScaleType;
-			}, true);
+			try {
+				_buttonScale.Elements = new ComboBox();
+				_buttonScale.Elements.ItemsSource = new List<ScalingMode> {
+					new ScalingMode {
+						IsAuto = true,
+						Name = "Auto",
+						Mode = BitmapScalingMode.NearestNeighbor
+					},
+					new ScalingMode {
+						Name = "Editor",
+						Mode = BitmapScalingMode.NearestNeighbor
+					},
+					new ScalingMode {
+						Name = "Ingame",
+						Mode = BitmapScalingMode.HighQuality
+					}
+				};
+
+				_buttonScale.Elements.SelectedIndex = 0;
+				_buttonScale.Elements.SelectionChanged += _buttonScaleElements_SelectionChanged;
+			}
+			catch {
+			}
 
 			_fancyButtons = new FancyButton[] { _fancyButton0, _fancyButton1, _fancyButton2, _fancyButton3, _fancyButton4, _fancyButton5, _fancyButton6, _fancyButton7 }.ToList();
 			BitmapSource image = ApplicationManager.GetResourceImage("arrow.png");
@@ -156,25 +173,7 @@ namespace GRFEditor.WPF.PreviewTabs {
 			_labelHeader.Dispatch(p => p.Text = "Animation : " + Path.GetFileName(actRelativePath));
 
 			try {
-				var sprEntry = _grfData.FileTable.TryGet(actRelativePath.ReplaceExtension(".spr"));
-
-				if (sprEntry == null) {
-					if (actRelativePath.StartsWith(EncodingService.FromAnyToDisplayEncoding(@"data\sprite\·Îºê\"))) {
-						var dirs = GrfPath.SplitDirectories(actRelativePath).ToList();
-						dirs.RemoveAt(dirs.Count - 1);
-						dirs.RemoveAt(dirs.Count - 1);
-						dirs.Add(dirs.Last() + ".spr");
-
-						sprEntry = _grfData.FileTable.TryGet(GrfPath.Combine(dirs.ToArray()));
-					}
-				}
-
-				if (sprEntry == null) {
-					_cancelAnimation();
-					return;
-				}
-
-				dataDecompressSpr = sprEntry.GetDecompressedData();
+				dataDecompressSpr = _grfData.FileTable[actRelativePath.ReplaceExtension(".spr")].GetDecompressedData();
 			}
 			catch {
 				//ErrorHandler.HandleException("Couldn't find the corresponding spr file : \n" + actRelativePath.ReplaceExtension(".spr"), ErrorLevel.Low);
@@ -297,8 +296,17 @@ namespace GRFEditor.WPF.PreviewTabs {
 									_changedAnimationIndex = false;
 								}
 
-								BitmapScalingMode mode = GrfEditorConfiguration.PreviewActScaleType ? BitmapScalingMode.HighQuality : BitmapScalingMode.NearestNeighbor;
-								ImageSource source = Imaging.GenerateImage(act, actionIndex, this._frameIndex, mode);
+								ScalingMode mode = (ScalingMode)this._buttonScale.Elements.SelectedItem;
+								bool stop = false;
+
+								if (mode.IsAuto)
+									act[actionIndex].AllLayers(l => {
+										if (l.ScaleX == 1.0 && l.ScaleY == 1.0 && l.Rotation == 0)
+											return;
+										stop = true;
+									});
+
+								ImageSource source = Imaging.GenerateImage(act, actionIndex, this._frameIndex, stop ? BitmapScalingMode.HighQuality : mode.Mode);
 
 								_imagePreview.Margin = new Thickness(
 									(int) (10 + _scrollViewer.ActualWidth / 2 - (double) source.Dispatcher.Invoke(new Func<double>(() => source.Width)) / 2),
@@ -429,6 +437,17 @@ namespace GRFEditor.WPF.PreviewTabs {
 					}
 				}
 			}));
+		}
+
+		private void _buttonScaleElements_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+			try {
+				_imagePreview.Dispatch(p => p.SetValue(RenderOptions.BitmapScalingModeProperty, ((ScalingMode)_buttonScale.Elements.SelectedItem).Mode));
+			}
+			catch (Exception err) {
+				_imagePreview.Dispatch(p => p.SetValue(RenderOptions.BitmapScalingModeProperty, Configuration.BestAvailableScaleMode));
+				ErrorHandler.HandleException(err);
+				_buttonScale.Elements.SelectedIndex = 0;
+			}
 		}
 
 		#region IDisposable members

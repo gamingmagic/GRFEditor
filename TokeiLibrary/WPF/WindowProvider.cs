@@ -6,7 +6,7 @@ using TokeiLibrary.WPF.Styles;
 namespace TokeiLibrary.WPF {
 	public static class WindowProvider {
 		public static bool? ShowWindow(TkWindow window, Window owner = null) {
-			if (owner != null)
+			//if (owner != null)
 				window.Owner = owner;
 
 			return window.ShowDialog();
@@ -25,10 +25,8 @@ namespace TokeiLibrary.WPF {
 				window.Closed += delegate {
 					itemClicked.IsEnabled = true;
 
-					if (window.Owner != null) {
-						window.Owner.Focus();
-						window.Owner.Activate();
-					}
+					if (window.Owner != null)
+						window.Focus();
 				};
 				window.Show();
 			}
@@ -51,10 +49,8 @@ namespace TokeiLibrary.WPF {
 						item.IsEnabled = true;
 					}
 
-					if (window.Owner != null) {
-						window.Owner.Focus();
-						window.Owner.Activate();
-					}
+					if (window.Owner != null)
+						window.Focus();
 				};
 				window.Show();
 			}
@@ -79,14 +75,6 @@ namespace TokeiLibrary.WPF {
 
 					dialog.Owner = topWindow;
 					dialog.ShowDialog();
-					
-					dialog.Closed += delegate {
-						if (dialog.Owner != null) {
-							dialog.Owner.Focus();
-							dialog.Owner.Activate();
-						}
-					};
-
 					return dialog.Result;
 				}
 				catch {

@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using GRF.FileFormats.GatFormat;
 using GRF.IO;
 
@@ -33,23 +32,6 @@ namespace GRF.FileFormats.GndFormat {
 			TileUp = data.Int32();
 			TileFront = data.Int32();
 			TileRight = data.Int32();
-		}
-
-		public float this[int index] {
-			get {
-				switch(index) {
-					case 0:
-						return BottomLeft;
-					case 1:
-						return BottomRight;
-					case 2:
-						return TopLeft;
-					case 3:
-						return TopRight;
-					default:
-						throw new ArgumentOutOfRangeException("index");
-				}
-			}
 		}
 
 		/// <summary>

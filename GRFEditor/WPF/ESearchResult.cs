@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using GRF.Core;
 using GRF.IO;
 using GRFEditor.ApplicationConfiguration;
-using GrfToWpfBridge;
 using ICSharpCode.AvalonEdit.Search;
 
 namespace GRFEditor.WPF {
@@ -22,12 +21,12 @@ namespace GRFEditor.WPF {
 			get {
 				if (Entry != null) {
 					if (Entry.DataImage == null)
-						Entry.DataImage = IconProvider.GetSmallIcon(Entry.RelativePath);
+						Entry.DataImage = GrfEditorIconProvider.GetSmallIcon(Entry.RelativePath);
 
 					return Entry.DataImage;
 				}
 
-				return IconProvider.GetSmallIcon(FileName);
+				return GrfEditorIconProvider.GetSmallIcon(FileName);
 			}
 		}
 

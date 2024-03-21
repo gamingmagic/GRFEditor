@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace GRF {
+﻿namespace GRF {
 	/// <summary>
 	/// This class contains all the strings used by the GRF library.
 	/// </summary>
@@ -67,14 +65,6 @@ namespace GRF {
 		public const string NoExceptions = "No exceptions.";
 		public const string DataStreamId = "[data stream]";
 		public const string EncryptionDbFile = "_encryptiondb.grf";
-		public const string GenderMale = "³²";
-		public const string GenderFemale = "¿©";
-		public static List<string> Genders = new List<string> { GenderMale, GenderFemale };
-
-		public enum Gender {
-			Male,
-			Female
-		}
 		#endregion
 
 	}

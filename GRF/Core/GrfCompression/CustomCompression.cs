@@ -11,7 +11,7 @@ namespace GRF.Core.GrfCompression {
 	public class CustomCompression : ICompression, IDisposable {
 		#region Delegates
 
-		public delegate int CompressMethod(byte[] buffer, ref int compressedLength, byte[] uncompressed, int uncompressedLength, int level);
+		public delegate int CompressMethod(byte[] buffer, ref int compressedLength, byte[] uncompressed, int uncompressedLength, int something);
 
 		public delegate int DecompressMethod(byte[] uncompressed, ref int uncompressedLength, byte[] compressed, int compressedLength);
 
@@ -21,10 +21,9 @@ namespace GRF.Core.GrfCompression {
 
 		protected CompressMethod _compress;
 		protected DecompressMethod _decompress;
-		protected int _compressionLevel = 0;
 
 		private bool _disposed;
-		protected IntPtr _hModule;
+		protected int _hModule;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="CustomCompression" /> class.
@@ -72,7 +71,7 @@ namespace GRF.Core.GrfCompression {
 			int length = 1024 + 2 * uncompressed.Length;
 			byte[] compressedBuffer = new byte[length];
 
-			if (_compress(compressedBuffer, ref length, uncompressed, uncompressed.Length, _compressionLevel) != 0) {
+			if (_compress(compressedBuffer, ref length, uncompressed, uncompressed.Length, 0) != 0) {
 				throw GrfExceptions.__FailedToCompressData.Create();
 			}
 
@@ -92,7 +91,7 @@ namespace GRF.Core.GrfCompression {
 			int length = 1024 + 2 * uncompressed.Length;
 			byte[] compressedBuffer = new byte[length];
 
-			if (_compress(compressedBuffer, ref length, uncompressed, uncompressed.Length, _compressionLevel) != 0) {
+			if (_compress(compressedBuffer, ref length, uncompressed, uncompressed.Length, 0) != 0) {
 				throw GrfExceptions.__FailedToCompressData.Create();
 			}
 
@@ -167,7 +166,7 @@ namespace GRF.Core.GrfCompression {
 				setting.Set(true);
 				_hModule = NativeMethods.LoadLibrary(_path);
 
-				if (_hModule == IntPtr.Zero) {
+				if (_hModule == 0) {
 					Success = false;
 					throw GrfExceptions.__CompressionDllFailed.Create(_path);
 				}

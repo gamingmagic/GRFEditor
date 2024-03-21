@@ -30,7 +30,7 @@ namespace GrfCL {
 				// Detect if input encoding came from the command line
 				if (Console.InputEncoding.GetString(Console.InputEncoding.GetBytes(Environment.CommandLine)) == Environment.CommandLine) {
 					// If it did, then do nothing
-					//CLHelper.Log = "Batch file detected an invalid encoding, changing command line arguments encoding to 1252";
+					CLHelper.Log = "Batch file detected an invalid encoding, changing command line arguments encoding to 1252";
 					commandLine = EncodingService.DisplayEncoding.GetString(Console.InputEncoding.GetBytes(Environment.CommandLine));
 				}
 				else {
@@ -84,13 +84,7 @@ namespace GrfCL {
 
 					clOption.Assign(unknownOption, _grf);
 
-					bool? ret = _parseCommand(clOption);
-
-					if (ret == null)
-						throw new Exception("Command unrecognized " + clOption.Option.CommandName);
-
-					if (ret == false)
-						return false;
+					return _parseCommand(clOption);
 				}
 			}
 			catch (Exception err) {

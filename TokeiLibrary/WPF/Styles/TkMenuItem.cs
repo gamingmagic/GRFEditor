@@ -21,13 +21,7 @@ namespace TokeiLibrary.WPF.Styles {
 
 		private bool _assigned;
 
-		private void _setDummyInputGesture() {
-			if (this.InputGestureText == "") {
-				this.InputGestureText = Shortcut;
-			}
-		}
-
-		private void _loadInputGestureText() {
+		private void _menuOpened(object sender, RoutedEventArgs e) {
 			if (String.IsNullOrEmpty(Shortcut) && String.IsNullOrEmpty(ShortcutCmd))
 				return;
 
@@ -54,16 +48,9 @@ namespace TokeiLibrary.WPF.Styles {
 				}
 
 				var gesture = ApplicationShortcut.GetGesture(gestureCmd);
-				//var oldDisplayIGT = this.InputGestureText;
+
 				this.InputGestureText = ApplicationShortcut.FindDislayNameMenuItem(gesture);
 			}
-		}
-
-		private void _menuOpened(object sender, RoutedEventArgs e) {
-			if (String.IsNullOrEmpty(Shortcut) && String.IsNullOrEmpty(ShortcutCmd))
-				return;
-
-			_loadInputGestureText();
 
 			if (!this._isInputStyleSet) {
 				try {

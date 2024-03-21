@@ -47,7 +47,7 @@ namespace GRF.FileFormats.SprFormat {
 				reader.Position = 8;
 			}
 
-			int palOffset = spr.NumberOfIndexed8Images > 0 ? reader.Length - 1024 : reader.Length;
+			int palOffset = reader.Length - 1024;
 
 			for (int i = 0; i < spr.NumberOfIndexed8Images; i++) {
 				if (reader.Position < palOffset) {

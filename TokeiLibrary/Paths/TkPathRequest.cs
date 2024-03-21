@@ -115,11 +115,6 @@ namespace TokeiLibrary.Paths {
 
 			return null;
 		}
-
-		public static string Folder<T>(string setting, params string[] extra) {
-			return Folder(new Setting(null, typeof(T).GetProperty(setting)), extra);
-		}
-
 		public static string Folder(params string[] extra) {
 			FolderSelectDialog dialog = new FolderSelectDialog();
 
@@ -147,11 +142,6 @@ namespace TokeiLibrary.Paths {
 
 			return null;
 		}
-
-		public static string OpenFile<T>(string setting, params string[] extra) {
-			return OpenFile(new Setting(null, typeof(T).GetProperty(setting)), extra);
-		}
-
 		public static string OpenFile(Setting setting, params string[] extra) {
 			OpenFileDialog dialog = new OpenFileDialog();
 			string currentPath = (string)setting.Get();
@@ -173,11 +163,6 @@ namespace TokeiLibrary.Paths {
 
 			return null;
 		}
-
-		public static string SaveFile<T>(string setting, params string[] extra) {
-			return SaveFile(new Setting(null, typeof(T).GetProperty(setting)), extra);
-		}
-
 		public static string SaveFile(Setting setting, params string[] extra) {
 			SaveFileDialog dialog = new SaveFileDialog();
 			LatestSaveFileDialog = dialog;
@@ -196,11 +181,6 @@ namespace TokeiLibrary.Paths {
 
 			return null;
 		}
-
-		public static string[] OpenFiles<T>(string setting, params string[] extra) {
-			return OpenFiles(new Setting(null, typeof(T).GetProperty(setting)), extra);
-		}
-
 		public static string[] OpenFiles(Setting setting, params string[] extra) {
 			OpenFileDialog dialog = new OpenFileDialog();
 			string currentPath = (string)setting.Get();

@@ -42,8 +42,6 @@ namespace TokeiLibrary.WPF.Styles {
 		private string _filter = "";
 
 		private PathBrowserRecentFiles _recentFiles;
-		private bool _useSavePath;
-		private string _savePathUniqueName;
 
 		public PathBrowserRecentFiles RecentFiles {
 			get { return _recentFiles; }
@@ -58,6 +56,9 @@ namespace TokeiLibrary.WPF.Styles {
 
 			Loaded += (e, a) => {
 				if (UseSavePath) {
+					_recentFiles = new PathBrowserRecentFiles(Configuration.ConfigAsker, 6, _miLoadRecent, SavePathUniqueName);
+					_recentFiles.Reload();
+					_recentFiles.FileClicked += new RecentFilesManager.RFMFileClickedEventHandler(_recentFiles_FileClicked);
 					_button.ContextMenu.Placement = PlacementMode.Bottom;
 					_button.ContextMenu.PlacementTarget = _button;
 					_button.PreviewMouseRightButtonUp += _disableButton;
@@ -72,35 +73,8 @@ namespace TokeiLibrary.WPF.Styles {
 			e.Handled = true;
 		}
 
-		public bool UseSavePath {
-			get { return _useSavePath; }
-			set {
-				_useSavePath = value;
-				_setupRecentFiles();
-			}
-		}
-
-		public string SavePathUniqueName {
-			get { return _savePathUniqueName; }
-			set {
-				_savePathUniqueName = value;
-				_setupRecentFiles();
-			}
-		}
-
-		private void _setupRecentFiles() {
-			if (UseSavePath && !String.IsNullOrEmpty(SavePathUniqueName) && _recentFiles == null) {
-				_recentFiles = new PathBrowserRecentFiles(Configuration.ConfigAsker, 6, _miLoadRecent, SavePathUniqueName);
-				_recentFiles.Reload();
-				_recentFiles.FileClicked += new RecentFilesManager.RFMFileClickedEventHandler(_recentFiles_FileClicked);
-			}
-		}
-
-		public void SetToLatestRecentFile() {
-			if (this.RecentFiles.Files.Count > 0) {
-				this.Text = this.RecentFiles.Files[0];
-			}
-		}
+		public bool UseSavePath { get; set; }
+		public string SavePathUniqueName { get; set; }
 
 		public BrowseModeType BrowseMode {
 			get;

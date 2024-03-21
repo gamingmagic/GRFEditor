@@ -233,13 +233,6 @@ namespace GRF.FileFormats.ActFormat {
 			return null;
 		}
 
-		public string GetSoundFileName(Act act) {
-			if (SoundId < 0 || SoundId >= act.SoundFiles.Count)
-				return null;
-
-			return act.SoundFiles[SoundId];
-		}
-
 		public void Magnify(float value) {
 			Layers.ForEach(p => p.Magnify(value));
 		}

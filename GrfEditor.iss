@@ -2,7 +2,7 @@
 
 [Setup]
 AppName=GRF Editor
-AppVersion={#VERSION_NAME}
+AppVersion=1.8.5.2
 DefaultDirName={pf}\GRF Editor
 DefaultGroupName=GRF Editor
 UninstallDisplayIcon={app}\GRF Editor.exe

@@ -22,16 +22,14 @@ namespace GRF.FileFormats.TgaFormat {
 				Pixels = new byte[Header.Height * stride];
 
 				for (int i = 0; i < Header.Height; i++) {
-					Buffer.BlockCopy(dataDecompressed, i * stride + TgaHeader.StructSize, Pixels, i * stride, stride);
+					Buffer.BlockCopy(dataDecompressed, (Header.Height - i - 1) * stride + TgaHeader.StructSize, Pixels, i * stride, stride);
 				}
 
 				if (Header.Bits == 32) {
 					Image = new GrfImage(Pixels, Header.Width, Header.Height, GrfImageType.Bgra32);
-					Image.Flip(FlipDirection.Vertical);
 				}
 				else if (Header.Bits == 24) {
 					Image = new GrfImage(Pixels, Header.Width, Header.Height, GrfImageType.Bgr24);
-					Image.Flip(FlipDirection.Vertical);
 				}
 				else {
 					throw GrfExceptions.__FileFormatException2.Create("TGA", string.Format(GrfStrings.TgaBitsExpected, Header.Bits));
@@ -70,9 +68,9 @@ namespace GRF.FileFormats.TgaFormat {
 
 				for (int k = 0; position < Pixels.Length; k++) {
 					byte repetitionCount = data[k];
-					bool runLengthPacket = (repetitionCount & 128) == 128;
+					bool runLenghtPacket = (repetitionCount & 128) == 128;
 
-					if (runLengthPacket) {
+					if (runLenghtPacket) {
 						repetitionCount -= 127;
 						byte[] firstPacket = new byte[increment];
 

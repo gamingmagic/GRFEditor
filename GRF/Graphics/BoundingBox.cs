@@ -1,5 +1,4 @@
-﻿using System;
-using Utilities;
+﻿using Utilities;
 
 namespace GRF.Graphics {
 	public class BoundingBox {
@@ -57,19 +56,6 @@ namespace GRF.Graphics {
 			Min.Y *= -1;
 			Offset.Y *= -1;
 			Center.Y *= -1;
-		}
-
-		public static BoundingBox operator +(BoundingBox boxA, BoundingBox boxB) {
-			BoundingBox box = new BoundingBox();
-
-			for (int i = 0; i < 3; i++) {
-				box.Max[i] = Math.Max(boxA.Max[i], boxB.Max[i]);
-				box.Min[i] = Math.Min(boxA.Min[i], boxB.Min[i]);
-				box.Center[i] = (box.Max[i] - box.Min[i]) / 2f + box.Min[i];
-				box.Range[i] = box.Max[i] - box.Center[i];
-			}
-
-			return box;
 		}
 	}
 }

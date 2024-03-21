@@ -4,7 +4,7 @@ namespace GRF.Graphics {
 	public struct Point {
 		public float X;
 		public float Y;
-		public double Length {
+		public double Lenght {
 			get { return Math.Pow(X * X + Y * Y, 0.5); }
 		}
 
@@ -52,7 +52,7 @@ namespace GRF.Graphics {
 		}
 
 		public static double CalculateDistance(Point u, Point v) {
-			return (u - v).Length;
+			return (u - v).Lenght;
 		}
 
 		public static Point operator -(Point u, Point v) {
